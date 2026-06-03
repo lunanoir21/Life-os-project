@@ -1,18 +1,32 @@
 <div align="center">
 
-# 🧠 Life OS
+<br/>
 
-### Your Personal Operating System
+<img src="public/logo.svg" alt="Life OS Logo" width="80" height="80" />
 
-**A beautiful, local-first personal life management system**
+<br/>
 
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
-[![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?style=flat-square&logo=prisma)](https://www.prisma.io/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+# Life OS
+
+**Your Personal Operating System**
+
+A beautiful, local-first life management system — built to keep every corner of your life in one place, without the cloud.
+
+<br/>
+
+[![Next.js](https://img.shields.io/badge/Next.js_16-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript_5-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS_4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![Prisma](https://img.shields.io/badge/Prisma_ORM-2D3748?style=flat-square&logo=prisma)](https://www.prisma.io/)
+[![Bun](https://img.shields.io/badge/Bun-black?style=flat-square&logo=bun)](https://bun.sh/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-22c55e?style=flat-square)](LICENSE)
+
+<br/>
 
 [Features](#-features) · [Tech Stack](#-tech-stack) · [Getting Started](#-getting-started) · [Project Structure](#-project-structure) · [Keyboard Shortcuts](#%EF%B8%8F-keyboard-shortcuts) · [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md)
+
+<br/>
 
 </div>
 
@@ -20,59 +34,61 @@
 
 ## ✨ Features
 
-### 🧩 11 Powerful Modules
+Life OS ships with **11 fully integrated modules** — all offline-first, zero subscriptions, zero data leaving your machine.
 
-- 📊 **Dashboard** — Overview with stats, weekly activity, mood logger, smart insights, and customizable widgets
-- ✅ **Tasks** — Drag-and-drop Kanban board, priorities, smart filtering, and project organization
-- 📝 **Notes** — Three-panel layout with folders, markdown editor, tags, and full-text search
-- 🔄 **Habits** — Daily tracking, streaks, heatmaps, motivational banners, and completion analytics
-- 📔 **Journal** — Timeline view with mood/energy/stress tracking, writing streaks, and guided prompts
-- 💰 **Finance** — Accounts, transactions, budgets, categories, and visual charts with trend analysis
-- 🎯 **Goals** — Progress rings, milestones, category organization, and deadline tracking
-- 📚 **Learning** — Course tracking, progress rings, resource management, and 45+ pre-made learning path templates
-- 📅 **Calendar** — Event management with color coding, multiple views, and drag-to-reschedule
-- ⏱️ **Time Tracker** — Dual-mode tracking with Pomodoro timer, session history, and productivity analytics
-- ⚙️ **Settings** — Profile, appearance, data management, keyboard shortcuts, and import/export
+### Modules
 
-### 🎨 Advanced Theming System
+| Module | Description |
+|--------|-------------|
+| 📊 **Dashboard** | Overview stats, weekly activity, mood logger, smart insights, and customizable widgets |
+| ✅ **Tasks** | Drag-and-drop Kanban board with priorities, smart filtering, and project organization |
+| 📝 **Notes** | Three-panel layout with folders, Markdown editor, tags, and full-text search |
+| 🔄 **Habits** | Daily tracking, streaks, heatmaps, motivational banners, and completion analytics |
+| 📔 **Journal** | Timeline view with mood/energy/stress tracking, writing streaks, and guided prompts |
+| 💰 **Finance** | Accounts, transactions, budgets, categories, and visual charts with trend analysis |
+| 🎯 **Goals** | Progress rings, milestones, category organization, and deadline tracking |
+| 📚 **Learning** | Course tracking, progress rings, resource management, and 45+ pre-made learning paths |
+| 📅 **Calendar** | Event management with color coding, multiple views, and drag-to-reschedule |
+| ⏱️ **Time Tracker** | Pomodoro timer, dual-mode tracking, session history, and productivity analytics |
+| ⚙️ **Settings** | Profile, appearance, data management, keyboard shortcuts, and import/export |
 
-- 🌓 **Dark / Light / System** — Smooth theme transitions that respect your OS preference
-- 🎨 **10+ Accent Colors** — Emerald, Teal, Amber, Rose, Violet, Cyan, Indigo, Pink, Lime, Sky + Custom
-- 🌈 **8 Theme Variants** — Default, Warm, Cool, Midnight, Forest, Sunset, Lavender, Nord
-- 🎯 **Custom Color Picker** — Unlimited personalization with any hex color
-- 🔤 **Font Size Control** — Small, Medium, and Large options
-- 📐 **UI Density** — Compact, Comfortable, and Spacious layouts
-- 🔘 **Border Radius Slider** — Fine-tune corner roundness from sharp to fully rounded
-- ✨ **Animation Toggle** — Enable or disable motion for accessibility
+### Theming
 
-### 🚀 Key Capabilities
+Life OS offers one of the most comprehensive theming systems of any local app:
 
-- ⌘ **Command Palette** — Quick access to everything with `⌘K`
-- 🔍 **Global Search** — Search across all modules with highlighted matches
-- 🎯 **Focus Mode** — Distraction-free interface (`F11`)
-- 📊 **Weekly Review** — Comprehensive analytics and insights across all modules
-- 🤖 **AI Insights** — Smart productivity and wellness scoring
-- ⌨️ **Keyboard Shortcuts** — Full keyboard navigation for power users
-- 💾 **Data Portability** — Export, import, and reset all data with one click
-- 🔔 **Notification Center** — Real-time alerts and reminders
-- 🏗️ **Setup Wizard** — Personalized onboarding experience
-- 📱 **Responsive Design** — Mobile and desktop optimized
-- 📚 **Learning Paths** — 45+ pre-made templates for structured skill development
-- 📋 **Kanban Board** — Drag-and-drop task management with `@dnd-kit`
-- 🍅 **Pomodoro Timer** — Built-in focus sessions with customizable intervals
+- **Dark / Light / System** — smooth transitions that respect your OS preference
+- **10+ Accent Colors** — Emerald, Teal, Amber, Rose, Violet, Cyan, Indigo, Pink, Lime, Sky, or any custom hex
+- **8 Theme Variants** — Default, Warm, Cool, Midnight, Forest, Sunset, Lavender, Nord
+- **Font Size** — Small, Medium, Large
+- **UI Density** — Compact, Comfortable, Spacious
+- **Border Radius** — fine-tune corner roundness with a slider
+- **Animation Toggle** — disable motion for accessibility
+
+### Power Features
+
+- **⌘K Command Palette** — jump to anything from anywhere
+- **Global Search** — search across all modules with highlighted matches
+- **Focus Mode** — distraction-free interface (`F11`)
+- **Weekly Review** — comprehensive analytics across all modules
+- **AI Insights** — smart productivity and wellness scoring
+- **Full Keyboard Navigation** — built for power users
+- **Data Portability** — export, import, and reset all data in one click
+- **Notification Center** — real-time alerts and reminders
+- **Setup Wizard** — guided onboarding on first launch
+- **Responsive Design** — fully optimized for mobile and desktop
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Category | Technology |
-|----------|-----------|
-| **Framework** | [Next.js 16](https://nextjs.org/) with App Router |
+| Layer | Technology |
+|-------|-----------|
+| **Framework** | [Next.js 16](https://nextjs.org/) — App Router |
 | **Language** | [TypeScript 5](https://www.typescriptlang.org/) |
 | **Styling** | [Tailwind CSS 4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) |
-| **Database** | [Prisma ORM](https://www.prisma.io/) with SQLite |
-| **State Management** | [Zustand](https://zustand.docs.pmnd.rs/) + [TanStack Query](https://tanstack.com/query) |
-| **Animations** | [Framer Motion](https://www.framer.com/motion/) |
+| **Database** | [Prisma ORM](https://www.prisma.io/) + SQLite |
+| **State** | [Zustand](https://zustand.docs.pmnd.rs/) + [TanStack Query](https://tanstack.com/query) |
+| **Animation** | [Framer Motion](https://www.framer.com/motion/) |
 | **Charts** | [Recharts](https://recharts.org/) |
 | **Drag & Drop** | [@dnd-kit](https://dndkit.com/) |
 | **Icons** | [Lucide React](https://lucide.dev/) |
@@ -85,65 +101,64 @@
 
 ### Prerequisites
 
-- **Node.js** 18+ or [Bun](https://bun.sh/) runtime
-- **npm**, **yarn**, or **bun** package manager
+- **Node.js** 18+ or [Bun](https://bun.sh/) _(recommended)_
 
-### Installation
+### Local Setup
 
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone https://github.com/yourusername/life-os.git
 cd life-os
 
-# Install dependencies
+# 2. Install dependencies
 bun install
 
-# Set up the database
+# 3. Set up the database
 bun run db:push
 
-# Seed with demo data (optional)
+# 4. (Optional) Seed with demo data
 bun run db:seed
 
-# Start the development server
+# 5. Start the development server
 bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser and start managing your life!
+Open [http://localhost:3000](http://localhost:3000) — you're live.
 
-### 🐳 Running with Docker
+### Docker Setup
 
-The project ships with a multi-stage `Dockerfile` and a `docker-compose.yml`. The SQLite database is persisted to a named `life-os-data` volume, and the schema is applied automatically on first boot.
+The project ships with a multi-stage `Dockerfile` and `docker-compose.yml`. Your SQLite database is persisted to a named `life-os-data` volume and the schema is applied automatically on first boot.
 
 ```bash
-# Build the image and start the container in the background
-bun run docker:up        # equivalent to: docker compose up -d --build
+# Build and start in the background
+bun run docker:up
 
-# Follow the container logs
+# Follow container logs
 bun run docker:logs
 
-# Stop and remove the container
+# Stop and remove containers
 bun run docker:down
 ```
 
-The app will be available at [http://localhost:3000](http://localhost:3000), with your data stored in the `life-os-data` volume.
+The app will be available at [http://localhost:3000](http://localhost:3000).
 
-### Available Scripts
+### All Scripts
 
 | Script | Description |
 |--------|-------------|
 | `bun run dev` | Start the development server on port 3000 |
 | `bun run build` | Create an optimized production build |
 | `bun run start` | Start the production server |
-| `bun run lint` | Run ESLint for code quality checks |
+| `bun run lint` | Run ESLint |
 | `bun run db:push` | Push schema changes to the database |
 | `bun run db:generate` | Generate the Prisma client |
 | `bun run db:migrate` | Run database migrations |
-| `bun run db:reset` | Reset the database and apply migrations |
+| `bun run db:reset` | Reset the database and re-apply migrations |
 | `bun run db:seed` | Seed the database with demo data |
 | `bun run docker:build` | Build the production Docker image |
-| `bun run docker:up` | Build and start the app with Docker Compose |
-| `bun run docker:down` | Stop and remove the Docker containers |
-| `bun run docker:logs` | Follow the container logs |
+| `bun run docker:up` | Build and start with Docker Compose |
+| `bun run docker:down` | Stop and remove Docker containers |
+| `bun run docker:logs` | Follow container logs |
 
 ---
 
@@ -151,171 +166,149 @@ The app will be available at [http://localhost:3000](http://localhost:3000), wit
 
 ```
 life-os/
-├── prisma/                    # Database schema and seed data
-│   ├── schema.prisma          # Prisma schema definition
+├── prisma/
+│   ├── schema.prisma          # Database schema
 │   └── seed.ts                # Demo data seeder
+│
 ├── src/
-│   ├── app/                   # Next.js App Router
+│   ├── app/
 │   │   ├── api/               # 20+ RESTful API endpoints
-│   │   │   ├── tasks/         # Task CRUD operations
-│   │   │   ├── notes/         # Notes and folders
-│   │   │   ├── habits/        # Habit tracking
-│   │   │   ├── journal/       # Journal entries
-│   │   │   ├── finance/       # Accounts, transactions, budgets
-│   │   │   ├── goals/         # Goal management
-│   │   │   ├── courses/       # Learning courses
-│   │   │   ├── events/        # Calendar events
-│   │   │   ├── time-entries/  # Time tracking
-│   │   │   ├── data/          # Export, import, reset
-│   │   │   ├── ai/            # AI insights
-│   │   │   ├── search/        # Global search
-│   │   │   └── ...            # And more
-│   │   ├── layout.tsx         # Root layout
-│   │   ├── page.tsx           # Home page
-│   │   └── globals.css        # Global styles
+│   │   │   ├── tasks/
+│   │   │   ├── notes/
+│   │   │   ├── habits/
+│   │   │   ├── journal/
+│   │   │   ├── finance/
+│   │   │   ├── goals/
+│   │   │   ├── courses/
+│   │   │   ├── events/
+│   │   │   ├── time-entries/
+│   │   │   ├── data/          # Export / import / reset
+│   │   │   ├── ai/
+│   │   │   └── search/
+│   │   ├── layout.tsx
+│   │   ├── page.tsx
+│   │   └── globals.css
+│   │
 │   ├── components/
-│   │   ├── ui/                # shadcn/ui components (40+)
+│   │   ├── ui/                # shadcn/ui primitives (40+)
 │   │   └── lifeos/            # Application components
-│   │       ├── dashboard/     # Dashboard widgets and analytics
-│   │       ├── tasks/         # Kanban board and task management
-│   │       ├── notes/         # Note editor and folder tree
-│   │       ├── habits/        # Habit tracker and streaks
-│   │       ├── journal/       # Journal timeline and mood tracking
-│   │       ├── finance/       # Financial dashboards and charts
-│   │       ├── goals/         # Goal progress and milestones
-│   │       ├── learning/      # Course tracking and paths
-│   │       ├── calendar/      # Calendar views and events
-│   │       ├── time/          # Time tracker and Pomodoro
-│   │       ├── settings/      # Preferences and data management
-│   │       ├── setup/         # Onboarding wizard
+│   │       ├── dashboard/
+│   │       ├── tasks/
+│   │       ├── notes/
+│   │       ├── habits/
+│   │       ├── journal/
+│   │       ├── finance/
+│   │       ├── goals/
+│   │       ├── learning/
+│   │       ├── calendar/
+│   │       ├── time/
+│   │       ├── settings/
+│   │       ├── setup/
 │   │       ├── command-palette.tsx
 │   │       ├── global-search-panel.tsx
 │   │       ├── notification-center.tsx
 │   │       ├── focus-mode-overlay.tsx
-│   │       ├── keyboard-shortcuts.tsx
-│   │       ├── accent-provider.tsx
 │   │       ├── app-shell.tsx
 │   │       ├── sidebar.tsx
-│   │       ├── header.tsx
-│   │       └── providers.tsx
+│   │       └── header.tsx
+│   │
 │   ├── stores/                # Zustand state stores
-│   │   ├── app-store.ts       # Global app state
-│   │   ├── task-store.ts      # Tasks state
-│   │   ├── note-store.ts      # Notes state
-│   │   ├── habit-store.ts     # Habits state
-│   │   ├── journal-store.ts   # Journal state
-│   │   ├── finance-store.ts   # Finance state
-│   │   ├── goal-store.ts      # Goals state
-│   │   ├── learning-store.ts  # Learning state
-│   │   └── calendar-store.ts  # Calendar state
-│   ├── hooks/                 # Custom React hooks
-│   │   ├── use-pomodoro.ts    # Pomodoro timer logic
-│   │   ├── use-toast.ts       # Toast notifications
-│   │   └── use-mobile.ts      # Mobile detection
-│   └── lib/                   # Utility functions and API client
-│       ├── api/               # API client and TanStack Query hooks
+│   │   ├── app-store.ts
+│   │   ├── task-store.ts
+│   │   ├── note-store.ts
+│   │   ├── habit-store.ts
+│   │   ├── journal-store.ts
+│   │   ├── finance-store.ts
+│   │   ├── goal-store.ts
+│   │   ├── learning-store.ts
+│   │   └── calendar-store.ts
+│   │
+│   ├── hooks/
+│   │   ├── use-pomodoro.ts
+│   │   ├── use-toast.ts
+│   │   └── use-mobile.ts
+│   │
+│   └── lib/
+│       ├── api/               # API client + TanStack Query hooks
 │       ├── i18n/              # Internationalization (EN, TR)
 │       ├── learning-paths.ts  # 45+ pre-made learning templates
-│       ├── db.ts              # Database client
-│       ├── utils.ts           # Utility functions
-│       └── toast.ts           # Toast helpers
-├── public/                    # Static assets
-│   ├── logo.svg               # App logo
-│   └── robots.txt             # SEO configuration
-├── Dockerfile                 # Multi-stage production image
-├── docker-compose.yml         # Container orchestration
-├── docker-entrypoint.sh       # Boot script (db push + start)
-├── .dockerignore              # Docker build context excludes
-├── .env.example               # Environment variables template
-├── LICENSE                    # MIT License
-└── package.json               # Project manifest
+│       ├── db.ts
+│       ├── utils.ts
+│       └── toast.ts
+│
+├── public/
+│   ├── logo.svg
+│   └── robots.txt
+│
+├── Dockerfile
+├── docker-compose.yml
+├── docker-entrypoint.sh
+├── .env.example
+└── package.json
 ```
 
 ---
 
 ## ⌨️ Keyboard Shortcuts
 
-| Shortcut | Action | Context |
-|----------|--------|---------|
-| `⌘K` / `Ctrl+K` | Open Command Palette | Global |
-| `F11` | Toggle Focus Mode | Global |
-| `⌘/` / `Ctrl+/` | Toggle Dark/Light Theme | Global |
-| `Escape` | Close dialogs, palettes, overlays | Global |
-| `⌘N` / `Ctrl+N` | Create new item | Module-specific |
-| `⌘F` / `Ctrl+F` | Open Global Search | Global |
-| `⌘S` / `Ctrl+S` | Save current item | Editor |
-| `⌘P` / `Ctrl+P` | Start/Pause Pomodoro | Time Tracker |
-| `?` | Show keyboard shortcuts | Global |
+| Shortcut | Action |
+|----------|--------|
+| `⌘K` / `Ctrl+K` | Open Command Palette |
+| `⌘F` / `Ctrl+F` | Open Global Search |
+| `⌘N` / `Ctrl+N` | Create new item |
+| `⌘S` / `Ctrl+S` | Save current item |
+| `⌘/` / `Ctrl+/` | Toggle Dark / Light theme |
+| `⌘P` / `Ctrl+P` | Start / Pause Pomodoro |
+| `F11` | Toggle Focus Mode |
+| `?` | Show all keyboard shortcuts |
+| `Escape` | Close dialogs, palettes, overlays |
 
 ---
 
 ## 🤝 Contributing
 
-We love contributions! Whether it's a bug fix, new feature, or documentation improvement — every contribution matters.
+Contributions of all kinds are welcome — bug fixes, features, documentation, translations.
 
-Please read our [**Contributing Guide**](CONTRIBUTING.md) to get started, and our [**Code of Conduct**](CODE_OF_CONDUCT.md) to understand our community standards.
-
-### Quick Start for Contributors
+Please read the [Contributing Guide](CONTRIBUTING.md) before opening a PR, and the [Code of Conduct](CODE_OF_CONDUCT.md) to understand our community standards.
 
 ```bash
-# Fork and clone the repository
+# Fork and clone
 git clone https://github.com/YOUR_USERNAME/life-os.git
 cd life-os
 
-# Install dependencies and set up
-bun install
-bun run db:push
+# Install dependencies
+bun install && bun run db:push
 
 # Create a feature branch
-git checkout -b feature/my-awesome-feature
+git checkout -b feat/my-feature
 
-# Make your changes and commit
-git commit -m "feat: add my awesome feature"
-
-# Push and create a Pull Request
-git push origin feature/my-awesome-feature
+# Commit and push
+git commit -m "feat: add my feature"
+git push origin feat/my-feature
 ```
+
+Then open a Pull Request — we'll review it promptly.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
-
-```
-MIT License
-
-Copyright (c) 2025 Life OS Contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction...
-```
+Licensed under the [MIT License](LICENSE). You're free to use, modify, and distribute this software.
 
 ---
 
 ## 🙏 Acknowledgments
 
-Life OS wouldn't be possible without these amazing open-source projects and communities:
+Life OS stands on the shoulders of these excellent open-source projects:
 
-- [Next.js](https://nextjs.org/) — The React Framework for the Web
-- [shadcn/ui](https://ui.shadcn.com/) — Beautifully designed components
-- [Tailwind CSS](https://tailwindcss.com/) — Utility-first CSS framework
-- [Prisma](https://www.prisma.io/) — Next-generation ORM
-- [Recharts](https://recharts.org/) — Composable charting library
-- [Framer Motion](https://www.framer.com/motion/) — Production-ready motion library
-- [Zustand](https://zustand.docs.pmnd.rs/) — Bear necessities for state management
-- [TanStack Query](https://tanstack.com/query) — Powerful data synchronization
-- [@dnd-kit](https://dndkit.com/) — Accessible drag and drop toolkit
-- [Lucide](https://lucide.dev/) — Beautiful open-source icons
-- [Bun](https://bun.sh/) — Fast JavaScript runtime and toolkit
+[Next.js](https://nextjs.org/) · [shadcn/ui](https://ui.shadcn.com/) · [Tailwind CSS](https://tailwindcss.com/) · [Prisma](https://www.prisma.io/) · [Recharts](https://recharts.org/) · [Framer Motion](https://www.framer.com/motion/) · [Zustand](https://zustand.docs.pmnd.rs/) · [TanStack Query](https://tanstack.com/query) · [@dnd-kit](https://dndkit.com/) · [Lucide](https://lucide.dev/) · [Bun](https://bun.sh/)
 
 ---
 
 <div align="center">
 
-**Built with ❤️ by [Life OS Contributors](https://github.com/yourusername/life-os/graphs/contributors)**
+Built with ❤️ by [Life OS Contributors](https://github.com/yourusername/life-os/graphs/contributors)
 
-[⬆ Back to Top](#-life-os)
+[⬆ Back to top](#life-os)
 
 </div>
