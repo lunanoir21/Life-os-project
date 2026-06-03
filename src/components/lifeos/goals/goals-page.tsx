@@ -279,7 +279,7 @@ export function GoalsPage() {
           ))}
         </div>
         <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogTrigger asChild><Button size="sm" className="text-white shadow-sm animate-gentle-pulse" style={{ background: `linear-gradient(to right, ${accentHex}, ${accentHex}cc)` }}><Plus className="h-4 w-4 mr-1.5" />{t('goals.newGoal')}</Button></DialogTrigger>
+          <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1.5" />{t('goals.newGoal')}</Button></DialogTrigger>
           <DialogContent aria-describedby={undefined}>
             <DialogHeader><DialogTitle>{t('goals.newGoal')}</DialogTitle><DialogDescription className="sr-only">{t('goals.createGoalSrOnly')}</DialogDescription></DialogHeader>
             <div className="space-y-4 py-2">

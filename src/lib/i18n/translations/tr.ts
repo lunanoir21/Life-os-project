@@ -393,6 +393,16 @@ const tr: TranslationKeys = {
     whatWasThisFor: 'Bu ne içindi?',
     type: 'Tür',
     accountType: '{type} Hesabı',
+    accountName: 'Hesap Adı',
+    accountNamePlaceholder: 'ör. Ana Vadesiz',
+    checking: 'Vadesiz',
+    savings: 'Tasarruf',
+    credit: 'Kredi',
+    investment: 'Yatırım',
+    cash: 'Nakit',
+    initialBalance: 'Başlangıç Bakiyesi',
+    currency: 'Para Birimi',
+    color: 'Renk',
   },
 
   // Goals

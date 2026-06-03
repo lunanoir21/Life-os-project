@@ -393,6 +393,16 @@ const en = {
     whatWasThisFor: 'What was this for?',
     type: 'Type',
     accountType: '{type} Account',
+    accountName: 'Account Name',
+    accountNamePlaceholder: 'e.g. Main Checking',
+    checking: 'Checking',
+    savings: 'Savings',
+    credit: 'Credit',
+    investment: 'Investment',
+    cash: 'Cash',
+    initialBalance: 'Initial Balance',
+    currency: 'Currency',
+    color: 'Color',
   },
 
   // Goals

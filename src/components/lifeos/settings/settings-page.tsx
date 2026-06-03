@@ -388,13 +388,13 @@ export function SettingsPage() {
                         <button
                           key={lang.code}
                           className={cn(
-                            'p-4 rounded-xl border-2 transition-all duration-200 flex flex-col items-center gap-2 relative',
+                            'p-4 rounded-xl border-2 transition-all duration-200 flex flex-col items-center gap-2 relative hover:scale-[1.02]',
                             isActive ? 'shadow-sm' : 'border-border hover:border-muted-foreground/30'
                           )}
                           style={isActive ? { borderColor: activeAccentHex, backgroundColor: `${activeAccentHex}10` } : undefined}
                           onClick={() => setLanguage(lang.code)}
                         >
-                          <Globe className={cn('h-6 w-6 transition-colors', isActive ? '' : 'text-muted-foreground')} style={isActive ? { color: activeAccentHex } : undefined} />
+                          <div className="text-3xl">{lang.flag}</div>
                           <span className="text-sm font-semibold">{lang.nativeLabel}</span>
                           <span className="text-[10px] text-muted-foreground">{lang.label}</span>
                           {isActive && (
@@ -470,6 +470,7 @@ export function SettingsPage() {
                 <CardContent>
                   <div className="grid grid-cols-3 gap-3">
                     {([
+                      { name: 'OLED Black', variant: 'black', accent: 'violet', mode: 'dark', desc: 'Black + Violet + Dark', lightBg: '#ffffff', darkBg: '#000000', accentHex: '#8b5cf6' },
                       { name: 'Ocean Breeze', variant: 'cool', accent: 'cyan', mode: 'dark', desc: 'Cool + Cyan + Dark', lightBg: '#f0f9ff', darkBg: '#0c1222', accentHex: '#06b6d4' },
                       { name: 'Sunset Glow', variant: 'sunset', accent: 'amber', mode: 'light', desc: 'Sunset + Amber + Light', lightBg: '#fff7ed', darkBg: '#1a0f08', accentHex: '#f59e0b' },
                       { name: 'Forest Retreat', variant: 'forest', accent: 'emerald', mode: 'dark', desc: 'Forest + Emerald + Dark', lightBg: '#f0fdf4', darkBg: '#0a1a0f', accentHex: '#10b981' },
@@ -630,6 +631,7 @@ export function SettingsPage() {
                   <div className="grid grid-cols-4 gap-3">
                     {([
                       { value: 'default', label: t('default'), desc: 'Standard white/dark', lightBg: '#ffffff', darkBg: '#18181b', lightCard: '#f4f4f5', darkCard: '#27272a' },
+                      { value: 'black', label: 'Black', desc: 'Pure OLED black (dark)', lightBg: '#ffffff', darkBg: '#000000', lightCard: '#f4f4f5', darkCard: '#111111' },
                       { value: 'warm', label: t('settings.compactDesc').split(' ')[0] || 'Warm', desc: 'Warm cream / warm dark', lightBg: '#fefce8', darkBg: '#1c1917', lightCard: '#fef9c3', darkCard: '#292524' },
                       { value: 'cool', label: 'Cool', desc: 'Cool blue tint / cool dark', lightBg: '#f0f9ff', darkBg: '#0c1222', lightCard: '#e0f2fe', darkCard: '#1e293b' },
                       { value: 'midnight', label: 'Midnight', desc: 'Very dark blue (dark only)', lightBg: '#f8fafc', darkBg: '#0a0f1e', lightCard: '#e2e8f0', darkCard: '#131b2e' },

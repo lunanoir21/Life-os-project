@@ -41,8 +41,14 @@ pub struct AppState {
 async fn main() {
     let _ = dotenvy::dotenv();
 
-    let database_url = std::env::var("DATABASE_URL")
+    let raw_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "sqlite:../prisma/dev.db".to_string());
+    // Accept Prisma-style `file:` prefix as well as sqlx-style `sqlite:`
+    let database_url = if raw_url.starts_with("file:") {
+        format!("sqlite:{}", &raw_url[5..])
+    } else {
+        raw_url
+    };
     let port: u16 = std::env::var("PORT")
         .ok()
         .and_then(|p| p.parse().ok())
@@ -113,7 +119,24 @@ async fn main() {
         .route("/api/data/import", post(data::import_data))
         .route("/api/data/reset", delete(data::reset_data))
         .route("/api/data/stats", get(data::get_stats))
-        .layer(CorsLayer::permissive())
+        .layer(
+            // Rust backend is an internal service called only by the Next.js
+            // server-side proxy. Permissive by default; set ALLOWED_ORIGIN to
+            // restrict direct browser access when port 8080 is publicly exposed.
+            {
+                let allowed = std::env::var("ALLOWED_ORIGIN").unwrap_or_default();
+                if allowed.is_empty() {
+                    CorsLayer::permissive()
+                } else {
+                    use axum::http::HeaderValue;
+                    CorsLayer::new().allow_origin(
+                        allowed.parse::<HeaderValue>()
+                            .map(tower_http::cors::AllowOrigin::exact)
+                            .unwrap_or_else(|_| tower_http::cors::AllowOrigin::any()),
+                    )
+                }
+            },
+        )
         .with_state(state);
 
     let addr = format!("0.0.0.0:{port}");

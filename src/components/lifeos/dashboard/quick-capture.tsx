@@ -231,8 +231,7 @@ export function QuickCapture() {
                     size="sm"
                     onClick={handleSubmit}
                     disabled={!inputValue.trim() || isSubmitting}
-                    className="h-9 px-3 rounded-lg text-white"
-                    style={{ background: `linear-gradient(to right, ${accentHex}, ${accentHex}cc)` }}
+                    className="h-9 px-3 rounded-lg"
                   >
                     <Send className="h-3.5 w-3.5" />
                   </Button>

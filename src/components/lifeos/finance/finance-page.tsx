@@ -28,7 +28,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { motion } from 'framer-motion'
 import type { FinanceAccount, Transaction, TransactionCategory, Budget } from '@/stores/finance-store'
 import { useAppStore } from '@/stores/app-store'
-import { useFinanceAccounts, useFinanceTransactions, useFinanceCategories, useCreateTransaction, useDeleteTransaction } from '@/lib/api/hooks'
+import { useFinanceAccounts, useFinanceTransactions, useFinanceCategories, useCreateTransaction, useDeleteTransaction, useCreateAccount } from '@/lib/api/hooks'
 import { useTranslation } from '@/lib/i18n'
 import { showToast } from '@/lib/toast'
 function cn(...inputs: (string | undefined | false)[]) { return inputs.filter(Boolean).join(' ') }
@@ -91,6 +91,7 @@ export function FinancePage() {
   const { data: apiCategories, isLoading: categoriesLoading } = useFinanceCategories()
   const createTransactionMutation = useCreateTransaction()
   const deleteTransactionMutation = useDeleteTransaction()
+  const createAccountMutation = useCreateAccount()
 
   const accounts: FinanceAccount[] = useMemo(() => {
     if (!apiAccounts) return []
@@ -108,6 +109,8 @@ export function FinancePage() {
   }, [apiCategories])
 
   const [financeView, setFinanceView] = useState<'overview' | 'transactions' | 'budget' | 'analytics'>('overview')
+  const [createAccountDialogOpen, setCreateAccountDialogOpen] = useState(false)
+  const [newAccount, setNewAccount] = useState({ name: '', type: 'checking', balance: '', currency: 'USD', color: '#10b981' })
 
   // Budget data (derived from categories with realistic defaults)
   const budgetData = useMemo(() => {
@@ -176,6 +179,23 @@ export function FinancePage() {
       .map(([month, amount]) => ({ month: new Date(month + '-01').toLocaleDateString('en-US', { month: 'short' }), amount }))
   }, [transactions])
 
+  const handleAddAccount = useCallback(() => {
+    if (!newAccount.name.trim()) return
+    createAccountMutation.mutate({
+      name: newAccount.name,
+      type: newAccount.type,
+      balance: parseFloat(newAccount.balance) || 0,
+      currency: newAccount.currency,
+      color: newAccount.color,
+    }, {
+      onSuccess: () => {
+        setNewAccount({ name: '', type: 'checking', balance: '', currency: 'USD', color: '#10b981' })
+        setCreateAccountDialogOpen(false)
+        showToast.success(t('toast.created'))
+      }
+    })
+  }, [newAccount, createAccountMutation, t])
+
   const handleAddTransaction = useCallback(() => {
     if (!newTransaction.description.trim() || !newTransaction.amount || !newTransaction.accountId) return
     const cat = categories.find(c => c.id === newTransaction.categoryId)
@@ -199,6 +219,31 @@ export function FinancePage() {
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6 animate-page-enter">
       {/* Account Cards */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t('finance.accounts')}</h2>
+        <Dialog open={createAccountDialogOpen} onOpenChange={setCreateAccountDialogOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1">
+              <Plus className="h-3.5 w-3.5" />{t('finance.newAccount')}
+            </Button>
+          </DialogTrigger>
+          <DialogContent aria-describedby={undefined}>
+            <DialogHeader><DialogTitle>{t('finance.newAccount')}</DialogTitle><DialogDescription className="sr-only">Add a new finance account</DialogDescription></DialogHeader>
+            <div className="space-y-4 py-2">
+              <div><label className="text-sm font-medium mb-1.5 block">{t('finance.accountName')}</label><Input placeholder={t('finance.accountNamePlaceholder')} value={newAccount.name} onChange={e => setNewAccount(p => ({ ...p, name: e.target.value }))} /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="text-sm font-medium mb-1.5 block">{t('finance.type')}</label><Select value={newAccount.type} onValueChange={v => setNewAccount(p => ({ ...p, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="checking">{t('finance.checking')}</SelectItem><SelectItem value="savings">{t('finance.savings')}</SelectItem><SelectItem value="credit">{t('finance.credit')}</SelectItem><SelectItem value="investment">{t('finance.investment')}</SelectItem><SelectItem value="cash">{t('finance.cash')}</SelectItem></SelectContent></Select></div>
+                <div><label className="text-sm font-medium mb-1.5 block">{t('finance.initialBalance')}</label><Input type="number" placeholder="0.00" value={newAccount.balance} onChange={e => setNewAccount(p => ({ ...p, balance: e.target.value }))} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="text-sm font-medium mb-1.5 block">{t('finance.currency')}</label><Select value={newAccount.currency} onValueChange={v => setNewAccount(p => ({ ...p, currency: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="USD">USD ($)</SelectItem><SelectItem value="EUR">EUR (€)</SelectItem><SelectItem value="GBP">GBP (£)</SelectItem><SelectItem value="TRY">TRY (₺)</SelectItem><SelectItem value="JPY">JPY (¥)</SelectItem></SelectContent></Select></div>
+                <div><label className="text-sm font-medium mb-1.5 block">{t('finance.color')}</label><div className="flex gap-1.5 mt-1 flex-wrap">{['#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#ec4899'].map(c => (<button key={c} className={cn('w-6 h-6 rounded-full transition-all', newAccount.color === c ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'hover:scale-105')} style={{ backgroundColor: c }} onClick={() => setNewAccount(p => ({ ...p, color: c }))} />))}</div></div>
+              </div>
+            </div>
+            <DialogFooter><DialogClose asChild><Button variant="outline">{t('cancel')}</Button></DialogClose><Button onClick={handleAddAccount} disabled={createAccountMutation.isPending}>{t('create')}</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => <Card key={i}><CardContent className="p-4"><Skeleton className="h-16 w-full" /></CardContent></Card>)}
@@ -245,7 +290,7 @@ export function FinancePage() {
           <TabsList className="h-8"><TabsTrigger value="overview" className="text-xs px-3 h-6 tab-transition">{t('nav.overview')}</TabsTrigger><TabsTrigger value="budget" className="text-xs px-3 h-6 tab-transition">{t('finance.budgets')}</TabsTrigger><TabsTrigger value="transactions" className="text-xs px-3 h-6 tab-transition">{t('finance.transactions')}</TabsTrigger><TabsTrigger value="analytics" className="text-xs px-3 h-6 tab-transition">{t('finance.analytics')}</TabsTrigger></TabsList>
         </Tabs>
         <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogTrigger asChild><Button size="sm" className="text-white shadow-sm" style={{ background: `linear-gradient(to right, ${accentHex}, ${accentHex}cc)` }}><Plus className="h-4 w-4 mr-1.5" />{t('finance.newTransaction')}</Button></DialogTrigger>
+          <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1.5" />{t('finance.newTransaction')}</Button></DialogTrigger>
           <DialogContent aria-describedby={undefined}>
             <DialogHeader><DialogTitle>{t('finance.newTransaction')}</DialogTitle><DialogDescription className="sr-only">Add a new financial transaction</DialogDescription></DialogHeader>
             <div className="space-y-4 py-2">

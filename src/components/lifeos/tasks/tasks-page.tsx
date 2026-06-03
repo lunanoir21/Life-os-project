@@ -490,7 +490,7 @@ export function TasksPage() {
         <div className="px-4 pt-3 pb-1">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-sm" style={{ background: `linear-gradient(to bottom right, ${accentHex}, ${accentHex}cc)` }}>
+              <div className="w-8 h-8 rounded-md border border-border flex items-center justify-center text-xs font-bold text-foreground bg-muted/40">
                 {taskCompletionPct}%
               </div>
               <div>
@@ -592,7 +592,7 @@ export function TasksPage() {
               </Popover>
               <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="text-white shadow-sm" style={{ background: `linear-gradient(to right, ${accentHex}, ${accentHex}cc)` }}>
+                  <Button size="sm">
                     <Plus className="h-4 w-4 mr-1.5" />{t('tasks.addTask')}
                   </Button>
                 </DialogTrigger>
@@ -844,9 +844,9 @@ function Boardview({ todoTasks, inProgressTasks, doneTasks, selectedTaskId, cele
   const [localTasks, setLocalTasks] = useState<Record<string, { status: Task['status'] }>>({})
 
   const columns = [
-    { title: t('tasks.toDoColumn'), tasks: todoTasks, status: 'todo' as const, color: 'bg-slate-400', headerBg: 'bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-950/30 dark:to-slate-900/20', colBg: 'bg-gradient-to-b from-slate-50/30 to-transparent dark:from-slate-950/10 dark:to-transparent', emptyIcon: '📋', emptyText: t('tasks.noTasks'), borderColor: 'border-slate-400', topBorder: 'bg-gradient-to-r from-slate-300 to-slate-400' },
-    { title: t('tasks.inProgressColumn'), tasks: inProgressTasks, status: 'in-progress' as const, color: 'bg-amber-500', headerBg: 'bg-gradient-to-r from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/20', colBg: 'bg-gradient-to-b from-amber-50/30 to-transparent dark:from-amber-950/10 dark:to-transparent', emptyIcon: '🔨', emptyText: t('tasks.nothingInProgress'), borderColor: 'border-amber-400', topBorder: 'bg-gradient-to-r from-amber-400 to-amber-500' },
-    { title: t('tasks.doneColumn'), tasks: doneTasks, status: 'done' as const, color: 'bg-emerald-500', headerBg: 'bg-gradient-to-r from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-900/20', colBg: 'bg-gradient-to-b from-emerald-50/30 to-transparent dark:from-emerald-950/10 dark:to-transparent', emptyIcon: '🎉', emptyText: t('tasks.completeSomeTasks'), borderColor: 'border-emerald-400', topBorder: 'bg-gradient-to-r from-emerald-400 to-emerald-500' },
+    { title: t('tasks.toDoColumn'), tasks: todoTasks, status: 'todo' as const, color: 'bg-slate-400', headerBg: '', colBg: 'bg-muted/20', emptyIcon: '📋', emptyText: t('tasks.noTasks'), borderColor: 'border-slate-200 dark:border-slate-800', topBorder: 'bg-slate-300 dark:bg-slate-700' },
+    { title: t('tasks.inProgressColumn'), tasks: inProgressTasks, status: 'in-progress' as const, color: 'bg-amber-500', headerBg: '', colBg: 'bg-amber-50/30 dark:bg-amber-950/10', emptyIcon: '🔨', emptyText: t('tasks.nothingInProgress'), borderColor: 'border-amber-200 dark:border-amber-900', topBorder: 'bg-amber-400' },
+    { title: t('tasks.doneColumn'), tasks: doneTasks, status: 'done' as const, color: 'bg-emerald-500', headerBg: '', colBg: 'bg-emerald-50/20 dark:bg-emerald-950/10', emptyIcon: '🎉', emptyText: t('tasks.completeSomeTasks'), borderColor: 'border-emerald-200 dark:border-emerald-900', topBorder: 'bg-emerald-400' },
   ]
 
   const sensors = useSensors(

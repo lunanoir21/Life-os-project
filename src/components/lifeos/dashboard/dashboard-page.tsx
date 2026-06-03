@@ -276,22 +276,17 @@ export function DashboardPage() {
   })
 
   return (
-    <div className="p-5 md:p-8 max-w-6xl mx-auto space-y-[var(--lifeos-section-gap)] relative">
-      {/* Animated gradient orb background for welcome section */}
-      <div className="absolute top-0 left-0 w-72 h-72 rounded-full opacity-[0.07] pointer-events-none animate-orb-drift" style={{ background: `radial-gradient(circle, var(--accent-primary) 0%, transparent 70%)`, filter: 'blur(40px)' }} />
-      <div className="absolute top-10 right-20 w-56 h-56 rounded-full opacity-[0.05] pointer-events-none animate-orb-drift-slow" style={{ background: `radial-gradient(circle, var(--accent-primary-light) 0%, transparent 70%)`, filter: 'blur(30px)' }} />
+    <div className="p-5 md:p-8 max-w-6xl mx-auto space-y-[var(--lifeos-section-gap)]">
 
       {/* Welcome Section - personalized with subtitle and greeting icon */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 relative">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl" style={{ background: `linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 15%, transparent), color-mix(in srgb, var(--accent-primary-light) 10%, transparent))` }}>
-              <GreetingIcon className="h-5 w-5" style={{ color: 'var(--accent-primary)' }} />
-            </div>
-            <h2 className="text-2xl font-bold text-foreground tracking-tight">{greeting}{userName ? `, ${userName}` : ''}</h2>
+            <GreetingIcon className="h-5 w-5 text-muted-foreground" />
+            <h2 className="text-xl font-semibold text-foreground tracking-tight">{greeting}{userName ? `, ${userName}` : ''}</h2>
           </div>
-          <p className="text-sm text-muted-foreground/70 mt-1.5 ml-[42px]">{subtitle}</p>
-          <div className="flex items-center gap-2 mt-3 ml-[42px]">
+          <p className="text-sm text-muted-foreground/70 mt-1">{subtitle}</p>
+          <div className="flex items-center gap-2 mt-2">
             <span className="text-sm text-muted-foreground">{today}</span>
             <span className="text-muted-foreground/30">·</span>
             <span className="text-sm text-muted-foreground/60 font-mono tabular-nums">{format(liveTime, 'h:mm a')}</span>

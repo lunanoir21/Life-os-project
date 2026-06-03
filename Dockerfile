@@ -1,17 +1,29 @@
 # syntax=docker/dockerfile:1
 
-# ---------- Builder ----------
+# ---------- Rust Builder ----------
+FROM rust:1-slim AS rust-builder
+WORKDIR /app/backend
+
+# Cache dependencies before copying source
+COPY backend/Cargo.toml backend/Cargo.lock* ./
+RUN mkdir src && echo "fn main() {}" > src/main.rs \
+    && cargo build --release \
+    && rm -rf src
+
+# Build the real binary
+COPY backend/src ./src
+RUN touch src/main.rs && cargo build --release
+
+# ---------- Next.js Builder ----------
 FROM oven/bun:1 AS builder
 WORKDIR /app
 
 ENV NEXT_TELEMETRY_DISABLED=1 \
     DATABASE_URL="file:/app/data/prod.db"
 
-# Install dependencies first for better layer caching
 COPY package.json bun.lock* bun.lockb* ./
 RUN bun install --frozen-lockfile || bun install
 
-# Build the app (runs `prisma generate && next build`, emits standalone output)
 COPY . .
 RUN bun run build
 
@@ -23,9 +35,9 @@ ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     HOSTNAME=0.0.0.0 \
     PORT=3000 \
-    DATABASE_URL="file:/app/data/prod.db"
+    DATABASE_URL="file:/app/data/prod.db" \
+    BACKEND_URL="http://localhost:8080"
 
-# OpenSSL is required by the Prisma query engine
 RUN apt-get update \
     && apt-get install -y --no-install-recommends openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
@@ -35,16 +47,19 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
-# Prisma schema + generated client + engines + CLI (used by `prisma db push` on boot)
+# Prisma schema + generated client + engines + CLI
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 
+# Rust backend binary
+COPY --from=rust-builder /app/backend/target/release/lifeos-backend /usr/local/bin/lifeos-backend
+
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/lifeos-backend \
     && mkdir -p /app/data \
-    && chown -R node:node /app
+    && chown -R node:node /app /usr/local/bin/lifeos-backend
 
 USER node
 EXPOSE 3000

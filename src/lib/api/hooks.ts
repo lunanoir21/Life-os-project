@@ -151,6 +151,15 @@ export function useCreateHabit() {
   })
 }
 
+export function useUpdateHabit() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string } & Record<string, unknown>) =>
+      apiPatch(`/api/habits/${id}`, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['habits'] }),
+  })
+}
+
 export function useDeleteHabit() {
   const qc = useQueryClient()
   return useMutation({
@@ -226,6 +235,23 @@ export function useFinanceAccounts() {
   })
 }
 
+export function useCreateAccount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => apiPost('/api/finance/accounts', data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance-accounts'] }),
+  })
+}
+
+export function useUpdateAccount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string } & Record<string, unknown>) =>
+      apiPatch(`/api/finance/accounts/${id}`, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance-accounts'] }),
+  })
+}
+
 // ============================================
 // Finance - Transactions
 // ============================================
@@ -262,6 +288,24 @@ export function useFinanceCategories() {
   return useQuery({
     queryKey: ['finance-categories'],
     queryFn: () => apiGet<unknown[]>('/api/finance/categories'),
+  })
+}
+
+// ============================================
+// Finance - Budgets
+// ============================================
+export function useFinanceBudgets() {
+  return useQuery({
+    queryKey: ['finance-budgets'],
+    queryFn: () => apiGet<unknown[]>('/api/finance/budgets'),
+  })
+}
+
+export function useCreateBudget() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => apiPost('/api/finance/budgets', data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance-budgets'] }),
   })
 }
 
@@ -528,6 +572,15 @@ export function useCreateEvent() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => apiPost('/api/events', data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['events'] }),
+  })
+}
+
+export function useUpdateEvent() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string } & Record<string, unknown>) =>
+      apiPatch(`/api/events/${id}`, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['events'] }),
   })
 }

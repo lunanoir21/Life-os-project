@@ -508,7 +508,7 @@ export function NotesPage() {
                     className={cn(
                       'w-full text-left p-2.5 rounded-lg transition-all duration-200 border-l-[3px] hover:shadow-md hover:-translate-y-0.5',
                       typeStyle?.border || 'border-l-slate-400',
-                      selectedNoteId === note.id ? 'bg-accent shadow-sm bg-gradient-to-r from-accent/80 to-accent' : 'hover:bg-accent/50'
+                      selectedNoteId === note.id ? 'bg-accent' : 'hover:bg-accent/50'
                     )}
                     onClick={() => setSelectedNoteId(note.id)}
                   >
@@ -686,8 +686,6 @@ export function NotesPage() {
                 <div className="flex items-center gap-2 justify-center">
                   <Button
                     size="sm"
-                    className="text-white shadow-sm"
-                    style={{ background: `linear-gradient(to right, ${accentHex}, ${accentHex}cc)` }}
                     onClick={() => setCreateDialogOpen(true)}
                   >
                     <Plus className="h-4 w-4 mr-1.5" />{t('notes.newNote')}

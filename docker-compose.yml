@@ -11,6 +11,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: "file:/app/data/prod.db"
+      BACKEND_URL: "http://localhost:8080"
     volumes:
       - life-os-data:/app/data
 

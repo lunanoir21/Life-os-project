@@ -12,6 +12,7 @@ import {
   Calendar,
   BarChart3,
   Trash2,
+  Pencil,
   Volume2,
   Trophy,
   Sparkles,
@@ -29,7 +30,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useHabits, useCreateHabit, useDeleteHabit, useLogHabit } from '@/lib/api/hooks'
+import { useHabits, useCreateHabit, useUpdateHabit, useDeleteHabit, useLogHabit } from '@/lib/api/hooks'
 import { HabitStreakCalendar } from './habit-streak-calendar'
 import { useAppStore } from '@/stores/app-store'
 import { useTranslation } from '@/lib/i18n'
@@ -245,6 +246,7 @@ export function HabitsPage() {
   const accentHex = accentHexMap[accentColor] || '#10b981'
   const { data: apiHabits, isLoading } = useHabits()
   const createHabitMutation = useCreateHabit()
+  const updateHabitMutation = useUpdateHabit()
   const deleteHabitMutation = useDeleteHabit()
   const logHabitMutation = useLogHabit()
 
@@ -255,6 +257,8 @@ export function HabitsPage() {
 
   const [habitView, setHabitView] = useState<'list' | 'calendar' | 'analytics'>('list')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editHabit, setEditHabit] = useState<{ id: string; name: string; description: string; frequency: string; color: string; icon: string } | null>(null)
   const [newHabit, setNewHabit] = useState({ name: '', description: '', frequency: 'daily', color: '#10b981', icon: '✅' })
   const [soundIndicator, setSoundIndicator] = useState<string | null>(null)
 
@@ -296,6 +300,29 @@ export function HabitsPage() {
       }
     })
   }, [newHabit, createHabitMutation, t])
+
+  const openEditDialog = useCallback((habit: typeof habits[0]) => {
+    setEditHabit({ id: habit.id, name: habit.name, description: habit.description, frequency: habit.frequency, color: habit.colorHex, icon: habit.icon })
+    setEditDialogOpen(true)
+  }, [])
+
+  const handleUpdateHabit = useCallback(() => {
+    if (!editHabit || !editHabit.name.trim()) return
+    updateHabitMutation.mutate({
+      id: editHabit.id,
+      name: editHabit.name,
+      description: editHabit.description,
+      frequency: editHabit.frequency,
+      color: editHabit.color,
+      icon: editHabit.icon,
+    }, {
+      onSuccess: () => {
+        setEditDialogOpen(false)
+        setEditHabit(null)
+        showToast.success(t('toast.saved'))
+      }
+    })
+  }, [editHabit, updateHabitMutation, t])
 
   const deleteHabit = useCallback((id: string) => {
     deleteHabitMutation.mutate(id)
@@ -397,6 +424,24 @@ export function HabitsPage() {
         />
       )}
 
+      {/* Edit Habit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent aria-describedby={undefined}>
+          <DialogHeader><DialogTitle>{t('edit')} {t('habits.title')}</DialogTitle><DialogDescription className="sr-only">Edit habit</DialogDescription></DialogHeader>
+          {editHabit && (
+            <div className="space-y-4 py-2">
+              <div><label className="text-sm font-medium mb-1.5 block">{t('habits.name')}</label><Input value={editHabit.name} onChange={e => setEditHabit(p => p && ({ ...p, name: e.target.value }))} /></div>
+              <div><label className="text-sm font-medium mb-1.5 block">{t('habits.description')}</label><Input placeholder={t('habits.briefDescription')} value={editHabit.description} onChange={e => setEditHabit(p => p && ({ ...p, description: e.target.value }))} /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="text-sm font-medium mb-1.5 block">{t('habits.frequency')}</label><Select value={editHabit.frequency} onValueChange={v => setEditHabit(p => p && ({ ...p, frequency: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="daily">{t('habits.daily')}</SelectItem><SelectItem value="weekly">{t('habits.weekly')}</SelectItem><SelectItem value="custom">{t('custom')}</SelectItem></SelectContent></Select></div>
+                <div><label className="text-sm font-medium mb-1.5 block">{t('habits.color')}</label><div className="flex gap-1.5 mt-1">{habitColors.map(c => { const hex = habitColorMap[c]; return <button key={c} className={cn('w-6 h-6 rounded-full transition-transform', c, editHabit.color === hex ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'hover:scale-105')} onClick={() => setEditHabit(p => p && ({ ...p, color: hex }))} /> })}</div></div>
+              </div>
+            </div>
+          )}
+          <DialogFooter><DialogClose asChild><Button variant="outline">{t('cancel')}</Button></DialogClose><Button onClick={handleUpdateHabit} disabled={updateHabitMutation.isPending}>{t('save')}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* View Tabs & Add Button */}
       <div className="flex items-center justify-between">
         <Tabs value={habitView} onValueChange={v => setHabitView(v as typeof habitView)}>
@@ -408,7 +453,7 @@ export function HabitsPage() {
         </Tabs>
         <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" className="text-white shadow-sm" style={{ background: `linear-gradient(to right, ${accentHex}, ${accentHex}cc)` }}><Plus className="h-4 w-4 mr-1.5" />{t('habits.newHabit')}</Button>
+            <Button size="sm"><Plus className="h-4 w-4 mr-1.5" />{t('habits.newHabit')}</Button>
           </DialogTrigger>
           <DialogContent aria-describedby={undefined}>
             <DialogHeader><DialogTitle>{t('habits.newHabit')}</DialogTitle><DialogDescription className="sr-only">{t('habits.createHabitSrOnly')}</DialogDescription></DialogHeader>
@@ -479,6 +524,9 @@ export function HabitsPage() {
                           <p className="text-sm font-semibold">{habit.completionRate}%</p>
                           <p className="text-[10px] text-muted-foreground">{t('habits.completion')}</p>
                         </div>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditDialog(habit)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-destructive" onClick={() => deleteHabit(habit.id)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>

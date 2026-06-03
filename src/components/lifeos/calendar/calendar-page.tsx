@@ -16,7 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { CalendarEvent } from '@/stores/calendar-store'
-import { useEvents, useCreateEvent, useDeleteEvent } from '@/lib/api/hooks'
+import { useEvents, useCreateEvent, useUpdateEvent, useDeleteEvent } from '@/lib/api/hooks'
 import { useAppStore } from '@/stores/app-store'
 import { showToast } from '@/lib/toast'
 import { useTranslation } from '@/lib/i18n'
@@ -110,6 +110,7 @@ export function CalendarPage() {
 
   const { data: apiEvents, isLoading } = useEvents({ startDate, endDate })
   const createEventMutation = useCreateEvent()
+  const updateEventMutation = useUpdateEvent()
   const deleteEventMutation = useDeleteEvent()
 
   const events: CalendarEvent[] = useMemo(() => {
@@ -118,6 +119,8 @@ export function CalendarPage() {
   }, [apiEvents])
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editEvent, setEditEvent] = useState<{ id: string; title: string; description: string; color: string; location: string } | null>(null)
   const [newEvent, setNewEvent] = useState({
     title: '', description: '', date: format(new Date(), 'yyyy-MM-dd'),
     startTime: '09:00', endTime: '10:00', allDay: false, color: '#10b981', location: '',
@@ -157,6 +160,28 @@ export function CalendarPage() {
       }
     })
   }, [newEvent, createEventMutation, t])
+
+  const openEditEvent = useCallback((event: CalendarEvent) => {
+    setEditEvent({ id: event.id, title: event.title, description: event.description || '', color: event.color, location: event.location || '' })
+    setEditDialogOpen(true)
+  }, [])
+
+  const handleUpdateEvent = useCallback(() => {
+    if (!editEvent || !editEvent.title.trim()) return
+    updateEventMutation.mutate({
+      id: editEvent.id,
+      title: editEvent.title,
+      description: editEvent.description || null,
+      color: editEvent.color,
+      location: editEvent.location || null,
+    }, {
+      onSuccess: () => {
+        setEditDialogOpen(false)
+        setEditEvent(null)
+        showToast.success(t('toast.saved'))
+      }
+    })
+  }, [editEvent, updateEventMutation, t])
 
   const deleteEvent = useCallback((id: string) => {
     deleteEventMutation.mutate(id)
@@ -355,6 +380,7 @@ export function CalendarPage() {
                       key={event.id}
                       className="flex items-center gap-2 p-1.5 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-sm hover-lift border-l-[3px]"
                       style={{ borderLeftColor: event.color, backgroundColor: event.color + '15' }}
+                      onClick={() => openEditEvent(event)}
                     >
                       <div className="w-1 h-full min-h-[20px] rounded-full" style={{ backgroundColor: event.color }} />
                       <div className="flex-1 min-w-0">
@@ -391,6 +417,22 @@ export function CalendarPage() {
 
   return (
     <TooltipProvider delayDuration={300}>
+      {/* Edit Event Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent aria-describedby={undefined}>
+          <DialogHeader><DialogTitle>{t('edit')} {t('calendar.title')}</DialogTitle><DialogDescription className="sr-only">Edit event</DialogDescription></DialogHeader>
+          {editEvent && (
+            <div className="space-y-4 py-2">
+              <div><label className="text-sm font-medium mb-1.5 block">{t('calendar.title')}</label><Input value={editEvent.title} onChange={e => setEditEvent(p => p && ({ ...p, title: e.target.value }))} /></div>
+              <div><label className="text-sm font-medium mb-1.5 block">{t('calendar.description')}</label><Input placeholder={t('calendar.optionalDescription')} value={editEvent.description} onChange={e => setEditEvent(p => p && ({ ...p, description: e.target.value }))} /></div>
+              <div><label className="text-sm font-medium mb-1.5 block">{t('calendar.location')}</label><Input placeholder={t('calendar.optional')} value={editEvent.location} onChange={e => setEditEvent(p => p && ({ ...p, location: e.target.value }))} /></div>
+              <div><label className="text-sm font-medium mb-1.5 block">{t('calendar.color')}</label><div className="flex gap-1.5 mt-1 flex-wrap">{eventColors.map(c => (<button key={c} className={cn('w-6 h-6 rounded-full transition-all', editEvent.color === c ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'hover:scale-105')} style={{ backgroundColor: c }} onClick={() => setEditEvent(p => p && ({ ...p, color: c }))} />))}</div></div>
+            </div>
+          )}
+          <DialogFooter><DialogClose asChild><Button variant="outline">{t('cancel')}</Button></DialogClose><Button onClick={handleUpdateEvent} disabled={updateEventMutation.isPending}>{t('save')}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="p-[var(--lifeos-card-padding)] max-w-6xl mx-auto space-y-[var(--lifeos-section-gap)] animate-page-enter">
         {/* Mini Stats Row */}
         <div className="flex items-center gap-3 flex-wrap">
@@ -436,7 +478,7 @@ export function CalendarPage() {
             </Tabs>
             <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" className="text-white shadow-sm" style={{ background: `linear-gradient(to right, ${accentHex}, ${accentHex}cc)` }}>
+                <Button size="sm">
                   <Plus className="h-4 w-4 mr-1.5" />{t('calendar.newEvent')}
                 </Button>
               </DialogTrigger>

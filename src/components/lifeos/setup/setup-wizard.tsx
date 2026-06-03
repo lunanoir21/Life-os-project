@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
   ChevronRight,
   ChevronLeft,
@@ -19,6 +19,7 @@ import {
   Sun,
   Moon,
   Monitor,
+  Circle,
   Upload,
   Sparkles,
   BarChart3,
@@ -32,18 +33,17 @@ import {
   Zap,
   Globe,
   Palette,
-  Type,
   LayoutGrid,
   PackagePlus,
   Rocket,
-  PartyPopper,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { Progress } from '@/components/ui/progress'
+import { cn } from '@/lib/utils'
 import { useAppStore, type ModuleId } from '@/stores/app-store'
 import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -52,18 +52,21 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 const languages = [
   { code: 'en', label: 'English', flag: '🇬🇧' },
-  { code: 'tr', label: 'Turkish', flag: '🇹🇷' },
-  { code: 'es', label: 'Spanish', flag: '🇪🇸' },
-  { code: 'fr', label: 'French', flag: '🇫🇷' },
-  { code: 'de', label: 'German', flag: '🇩🇪' },
-  { code: 'ja', label: 'Japanese', flag: '🇯🇵' },
+  { code: 'tr', label: 'Türkçe', flag: '🇹🇷' },
+  { code: 'es', label: 'Español', flag: '🇪🇸' },
+  { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
+  { code: 'fr', label: 'Français', flag: '🇫🇷' },
 ]
 
-const themes = [
-  { id: 'light', label: 'Light', icon: Sun, emoji: '☀️', previewBg: '#ffffff', previewSidebar: '#f8f8f8', previewCard: '#ffffff', previewText: '#1a1a1a', previewAccent: '#10b981' },
-  { id: 'dark', label: 'Dark', icon: Moon, emoji: '🌙', previewBg: '#1a1a1a', previewSidebar: '#111111', previewCard: '#222222', previewText: '#ffffff', previewAccent: '#10b981' },
-  { id: 'system', label: 'System', icon: Monitor, emoji: '🔄', previewBg: 'linear-gradient(135deg, #ffffff 50%, #1a1a1a 50%)', previewSidebar: '', previewCard: '', previewText: '#666', previewAccent: '#10b981' },
-]
+// Appearance modes — "black" maps to dark mode + the OLED black theme variant
+const appearanceModes = [
+  { id: 'light', theme: 'light', variant: 'default', icon: Sun, sidebar: '#f4f4f5', bg: '#ffffff' },
+  { id: 'dark', theme: 'dark', variant: 'default', icon: Moon, sidebar: '#0c0c0e', bg: '#18181b' },
+  { id: 'black', theme: 'dark', variant: 'black', icon: Circle, sidebar: '#000000', bg: '#000000' },
+  { id: 'system', theme: 'system', variant: 'default', icon: Monitor, sidebar: 'linear-gradient(135deg,#f4f4f5 50%,#0c0c0e 50%)', bg: 'linear-gradient(135deg,#ffffff 50%,#18181b 50%)' },
+] as const
+
+type AppearanceModeId = (typeof appearanceModes)[number]['id']
 
 const accentColors = [
   { id: 'emerald', color: '#10b981', label: 'Emerald' },
@@ -75,40 +78,41 @@ const accentColors = [
 ]
 
 const fontSizes = [
-  { id: 'small', label: 'Small', sample: 'Aa', size: 'text-sm' },
-  { id: 'medium', label: 'Medium', sample: 'Aa', size: 'text-base' },
-  { id: 'large', label: 'Large', sample: 'Aa', size: 'text-lg' },
+  { id: 'small', sample: 'Aa', size: 'text-sm' },
+  { id: 'medium', sample: 'Aa', size: 'text-base' },
+  { id: 'large', sample: 'Aa', size: 'text-lg' },
 ]
 
-const moduleCategories = [
+type WizardModule = { id: string; icon: LucideIcon; enabled: boolean; required?: boolean }
+const moduleCategories: { name: string; modules: WizardModule[] }[] = [
   {
     name: 'Overview',
     modules: [
-      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'Overview of your life at a glance', enabled: true, required: true },
+      { id: 'dashboard', icon: LayoutDashboard, enabled: true, required: true },
     ],
   },
   {
     name: 'Productivity',
     modules: [
-      { id: 'tasks', label: 'Tasks', icon: CheckSquare, description: 'Manage and track your tasks', enabled: true },
-      { id: 'notes', label: 'Notes', icon: StickyNote, description: 'Capture ideas and thoughts', enabled: true },
-      { id: 'calendar', label: 'Calendar', icon: CalendarDays, description: 'Schedule and plan events', enabled: true },
-      { id: 'time', label: 'Time Tracker', icon: Timer, description: 'Track time and Pomodoro', enabled: false },
+      { id: 'tasks', icon: CheckSquare, enabled: true },
+      { id: 'notes', icon: StickyNote, enabled: true },
+      { id: 'calendar', icon: CalendarDays, enabled: true },
+      { id: 'time', icon: Timer, enabled: false },
     ],
   },
   {
     name: 'Wellness',
     modules: [
-      { id: 'habits', label: 'Habits', icon: Repeat, description: 'Build and maintain habits', enabled: true },
-      { id: 'journal', label: 'Journal', icon: BookOpen, description: 'Reflect on your day', enabled: true },
+      { id: 'habits', icon: Repeat, enabled: true },
+      { id: 'journal', icon: BookOpen, enabled: true },
     ],
   },
   {
     name: 'Growth',
     modules: [
-      { id: 'goals', label: 'Goals', icon: Target, description: 'Set and achieve your goals', enabled: true },
-      { id: 'learning', label: 'Learning', icon: GraduationCap, description: 'Courses and resources', enabled: true },
-      { id: 'finance', label: 'Finance', icon: Wallet, description: 'Budget and transactions', enabled: true },
+      { id: 'goals', icon: Target, enabled: true },
+      { id: 'learning', icon: GraduationCap, enabled: true },
+      { id: 'finance', icon: Wallet, enabled: true },
     ],
   },
 ]
@@ -116,112 +120,201 @@ const moduleCategories = [
 const allModules = moduleCategories.flatMap(c => c.modules)
 
 const dashboardWidgetOptions = [
-  { id: 'quick-stats', label: 'Quick Stats', icon: BarChart3, description: 'Key metrics at a glance', defaultOn: true },
-  { id: 'quote', label: 'Motivational Quote', icon: Quote, description: 'Daily inspiration and motivation', defaultOn: true },
-  { id: 'weekly-activity', label: 'Weekly Activity Chart', icon: Activity, description: 'Visual weekly progress overview', defaultOn: true },
-  { id: 'smart-insights', label: 'Smart Insights', icon: Lightbulb, description: 'AI-powered productivity tips', defaultOn: true },
-  { id: 'daily-planner', label: 'Daily Planner', icon: ClipboardList, description: 'Plan your day with timeline', defaultOn: false },
-  { id: 'mood-tracker', label: 'Mood Tracker', icon: Smile, description: 'Track and visualize your mood', defaultOn: false },
-  { id: 'activity-feed', label: 'Activity Feed', icon: Rss, description: 'Recent cross-module activity', defaultOn: false },
+  { id: 'quick-stats', icon: BarChart3, defaultOn: true },
+  { id: 'quote', icon: Quote, defaultOn: true },
+  { id: 'weekly-activity', icon: Activity, defaultOn: true },
+  { id: 'smart-insights', icon: Lightbulb, defaultOn: true },
+  { id: 'daily-planner', icon: ClipboardList, defaultOn: false },
+  { id: 'mood-tracker', icon: Smile, defaultOn: false },
+  { id: 'activity-feed', icon: Rss, defaultOn: false },
 ]
 
-const wizardSteps = [
-  { title: 'Welcome', description: 'Get started with Life OS', icon: Globe },
-  { title: 'Language', description: 'Choose your language', icon: Globe },
-  { title: 'Database & Storage', description: 'Choose data storage', icon: Database },
-  { title: 'Appearance & Theme', description: 'Customize your look', icon: Palette },
-  { title: 'Modules', description: 'Pick your features', icon: LayoutGrid },
-  { title: 'Dashboard Layout', description: 'Configure your widgets', icon: LayoutDashboard },
-  { title: 'Quick Setup', description: 'Import or start fresh', icon: PackagePlus },
-  { title: 'All Set!', description: 'Launch your Life OS', icon: Rocket },
-]
+const stepIcons = [Sparkles, Globe, Database, Palette, LayoutGrid, LayoutDashboard, PackagePlus, Rocket]
+const TOTAL_STEPS = stepIcons.length
 
-const TOTAL_STEPS = wizardSteps.length
+// ─── Localized Copy ──────────────────────────────────────────────────
+// Self-contained wizard dictionary. `en` is the source of truth; other
+// languages must match its shape. Missing languages fall back to `en`.
 
-// ─── Confetti Component ──────────────────────────────────────────────
-
-function ConfettiExplosion({ accentHex }: { accentHex: string }) {
-  const colors = [accentHex, '#f59e0b', '#8b5cf6', '#f43f5e', '#06b6d4', '#14b8a6']
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {Array.from({ length: 40 }).map((_, i) => {
-        const angle = (i / 40) * 360
-        const distance = 80 + Math.random() * 140
-        const x = Math.cos((angle * Math.PI) / 180) * distance
-        const y = Math.sin((angle * Math.PI) / 180) * distance
-        const isSquare = i % 3 === 0
-        return (
-          <motion.div
-            key={i}
-            className={`absolute left-1/2 top-1/2 ${isSquare ? 'w-2 h-2' : 'w-2 h-3'}`}
-            style={{
-              backgroundColor: colors[i % colors.length],
-              borderRadius: isSquare ? '2px' : '50%',
-            }}
-            initial={{ x: 0, y: 0, scale: 1, opacity: 1, rotate: 0 }}
-            animate={{ x, y, scale: 0, opacity: 0, rotate: Math.random() * 720 - 360 }}
-            transition={{ duration: 1.5, ease: 'easeOut', delay: i * 0.02 }}
-          />
-        )
-      })}
-    </div>
-  )
+const wizardEn = {
+  brandLine1: 'Welcome.',
+  brandLine2: "Let's set up your workspace.",
+  brandSub: 'A few quick choices to make Life OS feel like home.',
+  stepOf: 'Step {n} of {total}',
+  steps: [
+    { title: 'Welcome', description: 'Get started with Life OS' },
+    { title: 'Language', description: 'Choose your language' },
+    { title: 'Storage', description: 'Where your data lives' },
+    { title: 'Appearance', description: 'Make it feel like yours' },
+    { title: 'Modules', description: 'Pick the features you need' },
+    { title: 'Dashboard', description: 'Configure your widgets' },
+    { title: 'Quick Setup', description: 'Import or start fresh' },
+    { title: 'All Set', description: 'Launch your workspace' },
+  ],
+  introParagraph: "Life OS brings your tasks, habits, notes, finances and goals into one calm, private workspace. Let's make it yours — it only takes a minute.",
+  nameLabel: 'What should we call you?',
+  namePlaceholder: 'Your name',
+  nameHelp: 'Used to personalize your experience. You can change it anytime.',
+  featureChips: { tasks: 'Tasks', habits: 'Habits', journal: 'Journal', finance: 'Finance', goals: 'Goals' },
+  storageParagraph: 'Life OS stores everything locally with SQLite — zero configuration, fully private, and yours to export anytime.',
+  recommended: 'Recommended',
+  storageSubtitle: 'Local-first, privacy-focused storage',
+  storageFeatures: ['Zero configuration', 'Stays on your device', 'Fast & lightweight', 'Export anytime'],
+  theme: 'Theme',
+  accentColor: 'Accent color',
+  fontSize: 'Font size',
+  themeLight: 'Light',
+  themeDark: 'Dark',
+  themeBlack: 'Black',
+  themeSystem: 'System',
+  fontSmall: 'Small',
+  fontMedium: 'Medium',
+  fontLarge: 'Large',
+  modulesIntro: 'Choose the modules you want. Everything can be toggled later in Settings.',
+  all: 'All',
+  none: 'None',
+  required: 'Required',
+  categories: { Overview: 'Overview', Productivity: 'Productivity', Wellness: 'Wellness', Growth: 'Growth' } as Record<string, string>,
+  modules: {
+    dashboard: { label: 'Dashboard', desc: 'Overview of your life at a glance' },
+    tasks: { label: 'Tasks', desc: 'Manage and track your tasks' },
+    notes: { label: 'Notes', desc: 'Capture ideas and thoughts' },
+    calendar: { label: 'Calendar', desc: 'Schedule and plan events' },
+    time: { label: 'Time Tracker', desc: 'Track time and Pomodoro' },
+    habits: { label: 'Habits', desc: 'Build and maintain habits' },
+    journal: { label: 'Journal', desc: 'Reflect on your day' },
+    goals: { label: 'Goals', desc: 'Set and achieve your goals' },
+    learning: { label: 'Learning', desc: 'Courses and resources' },
+    finance: { label: 'Finance', desc: 'Budget and transactions' },
+  } as Record<string, { label: string; desc: string }>,
+  widgetsIntro: 'Pick the widgets for your dashboard. Rearrange them anytime later.',
+  widgets: {
+    'quick-stats': { label: 'Quick Stats', desc: 'Key metrics at a glance' },
+    quote: { label: 'Motivational Quote', desc: 'Daily inspiration and motivation' },
+    'weekly-activity': { label: 'Weekly Activity Chart', desc: 'Visual weekly progress overview' },
+    'smart-insights': { label: 'Smart Insights', desc: 'AI-powered productivity tips' },
+    'daily-planner': { label: 'Daily Planner', desc: 'Plan your day with timeline' },
+    'mood-tracker': { label: 'Mood Tracker', desc: 'Track and visualize your mood' },
+    'activity-feed': { label: 'Activity Feed', desc: 'Recent cross-module activity' },
+  } as Record<string, { label: string; desc: string }>,
+  quickIntro: 'Start with a clean slate, or bring your data in from a previous backup.',
+  startFresh: 'Start fresh',
+  startFreshDesc: 'Begin with sample data to explore',
+  importBackup: 'Import backup',
+  importBackupDesc: 'Restore from a Life OS export',
+  importDrop: 'Click to select or drop your .json backup',
+  importDropSub: 'Tasks, notes, habits, journal, finance, goals & learning',
+  freshNote: "We'll set up Life OS with a little sample data so you can find your way around. Modify or delete it whenever you like.",
+  allSetHeading: "You're all set",
+  allSetSub: 'Review your choices and launch when ready.',
+  sName: 'Name',
+  sLanguage: 'Language',
+  sStorage: 'Storage',
+  sTheme: 'Theme',
+  sAccent: 'Accent',
+  sModules: 'Modules',
+  notSet: 'Not set',
+  modulesEnabledSuffix: 'enabled',
+  enabledModulesLabel: 'Enabled modules',
+  skipSetup: 'Skip setup',
+  back: 'Back',
+  continue: 'Continue',
+  launch: 'Launch Life OS',
+  settingUp: 'Setting up…',
 }
 
-// ─── Celebration Animation ────────────────────────────────────────────
+type WizardStrings = typeof wizardEn
 
-function CelebrationOverlay({ show }: { show: boolean }) {
-  if (!show) return null
-  return (
-    <AnimatePresence>
-      {show && (
-        <motion.div
-          className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          <motion.div
-            className="text-center"
-            initial={{ scale: 0, y: 50 }}
-            animate={{ scale: 1, y: 0 }}
-            transition={{ type: 'spring', stiffness: 200, damping: 12, delay: 0.2 }}
-          >
-            <motion.div
-              className="text-6xl mb-4"
-              animate={{
-                scale: [1, 1.3, 1],
-                rotate: [0, 15, -15, 0],
-              }}
-              transition={{ duration: 0.8, repeat: 2, repeatDelay: 0.4 }}
-            >
-              🎉
-            </motion.div>
-          </motion.div>
-          {/* Floating stars */}
-          {Array.from({ length: 12 }).map((_, i) => (
-            <motion.div
-              key={`star-${i}`}
-              className="absolute text-2xl"
-              style={{
-                left: `${10 + Math.random() * 80}%`,
-                top: `${10 + Math.random() * 80}%`,
-              }}
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{
-                scale: [0, 1.5, 0],
-                opacity: [0, 1, 0],
-                y: [0, -30 - Math.random() * 40],
-              }}
-              transition={{ duration: 1.5, delay: 0.3 + i * 0.1, ease: 'easeOut' }}
-            >
-              {i % 3 === 0 ? '✨' : i % 3 === 1 ? '⭐' : '💫'}
-            </motion.div>
-          ))}
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
+const wizardTr: WizardStrings = {
+  brandLine1: 'Hoş geldiniz.',
+  brandLine2: 'Çalışma alanınızı kuralım.',
+  brandSub: 'Life OS’u kendinize ait hissettirecek birkaç hızlı seçim.',
+  stepOf: 'Adım {n} / {total}',
+  steps: [
+    { title: 'Hoş geldiniz', description: 'Life OS ile başlayın' },
+    { title: 'Dil', description: 'Dilinizi seçin' },
+    { title: 'Depolama', description: 'Verileriniz nerede saklanır' },
+    { title: 'Görünüm', description: 'Size ait hissettirin' },
+    { title: 'Modüller', description: 'İhtiyacınız olan özellikleri seçin' },
+    { title: 'Panel', description: 'Widget’larınızı yapılandırın' },
+    { title: 'Hızlı Kurulum', description: 'İçe aktarın veya sıfırdan başlayın' },
+    { title: 'Hazır', description: 'Çalışma alanınızı başlatın' },
+  ],
+  introParagraph: 'Life OS; görevlerinizi, alışkanlıklarınızı, notlarınızı, finansınızı ve hedeflerinizi tek bir sakin ve özel çalışma alanında toplar. Hadi onu sizinki yapalım — yalnızca bir dakika sürer.',
+  nameLabel: 'Size nasıl hitap edelim?',
+  namePlaceholder: 'Adınız',
+  nameHelp: 'Deneyiminizi kişiselleştirmek için kullanılır. İstediğiniz zaman değiştirebilirsiniz.',
+  featureChips: { tasks: 'Görevler', habits: 'Alışkanlıklar', journal: 'Günlük', finance: 'Finans', goals: 'Hedefler' },
+  storageParagraph: 'Life OS her şeyi SQLite ile yerel olarak saklar — sıfır yapılandırma, tamamen özel ve istediğiniz zaman dışa aktarılabilir.',
+  recommended: 'Önerilen',
+  storageSubtitle: 'Yerel öncelikli, gizlilik odaklı depolama',
+  storageFeatures: ['Sıfır yapılandırma', 'Cihazınızda kalır', 'Hızlı ve hafif', 'İstediğinizde dışa aktarın'],
+  theme: 'Tema',
+  accentColor: 'Vurgu rengi',
+  fontSize: 'Yazı boyutu',
+  themeLight: 'Açık',
+  themeDark: 'Koyu',
+  themeBlack: 'Siyah',
+  themeSystem: 'Sistem',
+  fontSmall: 'Küçük',
+  fontMedium: 'Orta',
+  fontLarge: 'Büyük',
+  modulesIntro: 'İstediğiniz modülleri seçin. Her şey daha sonra Ayarlar’dan açılıp kapatılabilir.',
+  all: 'Tümü',
+  none: 'Hiçbiri',
+  required: 'Gerekli',
+  categories: { Overview: 'Genel Bakış', Productivity: 'Üretkenlik', Wellness: 'Sağlık', Growth: 'Gelişim' },
+  modules: {
+    dashboard: { label: 'Panel', desc: 'Hayatınıza bir bakışta genel bakış' },
+    tasks: { label: 'Görevler', desc: 'Görevlerinizi yönetin ve takip edin' },
+    notes: { label: 'Notlar', desc: 'Fikirleri ve düşünceleri yakalayın' },
+    calendar: { label: 'Takvim', desc: 'Etkinlikleri planlayın ve düzenleyin' },
+    time: { label: 'Zaman Takibi', desc: 'Zaman ve Pomodoro takibi' },
+    habits: { label: 'Alışkanlıklar', desc: 'Alışkanlıklar oluşturun ve sürdürün' },
+    journal: { label: 'Günlük', desc: 'Gününüzü değerlendirin' },
+    goals: { label: 'Hedefler', desc: 'Hedefler belirleyin ve ulaşın' },
+    learning: { label: 'Öğrenme', desc: 'Kurslar ve kaynaklar' },
+    finance: { label: 'Finans', desc: 'Bütçe ve işlemler' },
+  },
+  widgetsIntro: 'Paneliniz için widget’ları seçin. İstediğiniz zaman yeniden düzenleyin.',
+  widgets: {
+    'quick-stats': { label: 'Hızlı İstatistikler', desc: 'Bir bakışta önemli metrikler' },
+    quote: { label: 'Motivasyon Sözü', desc: 'Günlük ilham ve motivasyon' },
+    'weekly-activity': { label: 'Haftalık Etkinlik Grafiği', desc: 'Görsel haftalık ilerleme özeti' },
+    'smart-insights': { label: 'Akıllı İçgörüler', desc: 'Yapay zekâ destekli üretkenlik ipuçları' },
+    'daily-planner': { label: 'Günlük Planlayıcı', desc: 'Gününüzü zaman çizelgesiyle planlayın' },
+    'mood-tracker': { label: 'Ruh Hâli Takibi', desc: 'Ruh hâlinizi takip edin ve görselleştirin' },
+    'activity-feed': { label: 'Etkinlik Akışı', desc: 'Modüller arası son etkinlikler' },
+  },
+  quickIntro: 'Temiz bir sayfayla başlayın ya da önceki bir yedekten verilerinizi getirin.',
+  startFresh: 'Sıfırdan başla',
+  startFreshDesc: 'Keşfetmek için örnek verilerle başlayın',
+  importBackup: 'Yedeği içe aktar',
+  importBackupDesc: 'Bir Life OS dışa aktarımından geri yükleyin',
+  importDrop: '.json yedeğinizi seçmek için tıklayın veya buraya bırakın',
+  importDropSub: 'Görevler, notlar, alışkanlıklar, günlük, finans, hedefler ve öğrenme',
+  freshNote: 'Yolunuzu bulabilmeniz için Life OS’u biraz örnek veriyle kuracağız. İstediğiniz zaman değiştirin veya silin.',
+  allSetHeading: 'Her şey hazır',
+  allSetSub: 'Seçimlerinizi gözden geçirin ve hazır olduğunuzda başlatın.',
+  sName: 'Ad',
+  sLanguage: 'Dil',
+  sStorage: 'Depolama',
+  sTheme: 'Tema',
+  sAccent: 'Vurgu',
+  sModules: 'Modüller',
+  notSet: 'Belirtilmedi',
+  modulesEnabledSuffix: 'etkin',
+  enabledModulesLabel: 'Etkin modüller',
+  skipSetup: 'Kurulumu atla',
+  back: 'Geri',
+  continue: 'Devam',
+  launch: 'Life OS’u başlat',
+  settingUp: 'Kuruluyor…',
+}
+
+const wizardCopy: Record<string, WizardStrings> = {
+  en: wizardEn,
+  tr: wizardTr,
 }
 
 // ─── Main Wizard Component ───────────────────────────────────────────
@@ -231,10 +324,11 @@ export function SetupWizard() {
   const [direction, setDirection] = useState(1)
   const [name, setName] = useState('')
   const [selectedLanguage, setSelectedLanguage] = useState('en')
-  const [selectedTheme, setSelectedTheme] = useState('system')
+  const [selectedMode, setSelectedMode] = useState<AppearanceModeId>('black')
   const [selectedAccent, setSelectedAccent] = useState('emerald')
   const accentHex = accentColors.find(a => a.id === selectedAccent)?.color ?? '#10b981'
   const [selectedFontSize, setSelectedFontSize] = useState('medium')
+  const [launching, setLaunching] = useState(false)
 
   const [enabledModules, setEnabledModules] = useState<Set<string>>(
     new Set(allModules.filter(m => m.enabled).map(m => m.id))
@@ -243,8 +337,6 @@ export function SetupWizard() {
     new Set(dashboardWidgetOptions.filter(w => w.defaultOn).map(w => w.id))
   )
   const [setupMode, setSetupMode] = useState<'fresh' | 'import'>('fresh')
-  const [showConfetti, setShowConfetti] = useState(false)
-  const [showCelebration, setShowCelebration] = useState(false)
 
   const {
     setSetupComplete,
@@ -253,9 +345,28 @@ export function SetupWizard() {
     setFontSize,
     setDashboardWidgets,
     setTheme,
+    setThemeVariant,
     setEnabledModules: setStoreEnabledModules,
   } = useAppStore()
   const { setTheme: setNextTheme } = useTheme()
+
+  // Localized copy for the current language (falls back to English)
+  const w = wizardCopy[selectedLanguage] ?? wizardEn
+
+  const currentMode = appearanceModes.find(m => m.id === selectedMode) ?? appearanceModes[2]
+  const selectedTheme = currentMode.theme
+  const selectedVariant = currentMode.variant
+
+  // Detect the browser language on first mount and pre-select it so the
+  // wizard renders in the user's language right away.
+  useEffect(() => {
+    const navLang = typeof navigator !== 'undefined' ? navigator.language : 'en'
+    const primary = navLang.split('-')[0].toLowerCase()
+    const matched = languages.find(l => l.code === primary)
+    const code = matched ? matched.code : 'en'
+    setSelectedLanguage(code)
+    setLanguage(code)
+  }, [])
 
   const progressPercent = ((step + 1) / TOTAL_STEPS) * 100
 
@@ -312,17 +423,16 @@ export function SetupWizard() {
   }
 
   const handleLaunch = async () => {
+    setLaunching(true)
     setLanguage(selectedLanguage)
     setAccentColor(selectedAccent)
     setFontSize(selectedFontSize)
     setTheme(selectedTheme)
+    setThemeVariant(selectedVariant)
     setDashboardWidgets(Array.from(selectedWidgets))
     setStoreEnabledModules([...Array.from(enabledModules), 'settings'] as ModuleId[])
-
-    // Apply theme via next-themes
     setNextTheme(selectedTheme)
 
-    // Save user profile to the backend
     if (name.trim()) {
       fetch('/api/profile', {
         method: 'PATCH',
@@ -332,345 +442,228 @@ export function SetupWizard() {
           theme: selectedTheme,
           locale: selectedLanguage,
         }),
-      }).catch(() => {
-        // Silently ignore profile save errors during setup
-      })
+      }).catch(() => {})
     }
 
-    setShowConfetti(true)
-    setShowCelebration(true)
-    setTimeout(() => {
-      setShowCelebration(false)
-    }, 3000)
-    setTimeout(() => {
-      setSetupComplete(true)
-    }, 2000)
+    setTimeout(() => setSetupComplete(true), 900)
   }
 
+  // Reusable selected-state style for option cards
+  const sel = (active: boolean) =>
+    active ? { borderColor: accentHex, backgroundColor: `${accentHex}0d` } : undefined
+
   const slideVariants = {
-    enter: (dir: number) => ({ x: dir > 0 ? 200 : -200, opacity: 0, scale: 0.98 }),
-    center: { x: 0, opacity: 1, scale: 1 },
-    exit: (dir: number) => ({ x: dir > 0 ? -200 : 200, opacity: 0, scale: 0.98 }),
+    enter: (dir: number) => ({ x: dir > 0 ? 24 : -24, opacity: 0 }),
+    center: { x: 0, opacity: 1 },
+    exit: (dir: number) => ({ x: dir > 0 ? -24 : 24, opacity: 0 }),
   }
 
   // ─── Step Renderers ─────────────────────────────────────────────
 
-  // Step 0: Welcome (name only)
+  // Step 0: Welcome (name)
   const renderStep0 = () => (
     <div className="space-y-6">
-      {/* Animated Logo */}
-      <motion.div
-        className="text-center"
-        initial={{ scale: 0.5, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-      >
-        <motion.div
-          className="w-24 h-24 rounded-2xl flex items-center justify-center text-white text-4xl font-bold mx-auto mb-4 shadow-lg"
-          style={{ background: `linear-gradient(to bottom right, ${accentHex}, ${accentHex}cc)` }}
-          animate={{ rotateY: [0, 360] }}
-          transition={{ duration: 2, ease: 'easeInOut', repeat: Infinity, repeatDelay: 3 }}
-        >
-          L
-        </motion.div>
-        <motion.h2
-          className="text-3xl font-bold"
-          style={{ backgroundImage: `linear-gradient(to right, ${accentHex}, ${accentHex}cc)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.3 }}
-        >
-          Welcome to Life OS
-        </motion.h2>
-        <motion.p
-          className="text-muted-foreground mt-2 max-w-md mx-auto"
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.5 }}
-        >
-          Your personal life operating system. Manage everything from tasks and habits to finances and goals — all in one place.
-        </motion.p>
-      </motion.div>
+      <p className="text-[15px] text-muted-foreground leading-relaxed">{w.introParagraph}</p>
 
-      {/* Name Input */}
-      <motion.div
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.6 }}
-      >
-        <label className="text-sm font-medium mb-1.5 block">What should we call you?</label>
-        <Input
-          placeholder="Enter your name..."
-          value={name}
-          onChange={e => setName(e.target.value)}
-          className="h-11 text-base"
-          autoFocus
-        />
-        <p className="text-xs text-muted-foreground mt-1.5">This will be used to personalize your experience</p>
-      </motion.div>
-
-      {/* Skip Setup option */}
-      <motion.div
-        className="text-center pt-2"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.8 }}
-      >
-        <button
-          onClick={handleLaunch}
-          className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors underline underline-offset-2"
-        >
-          Skip setup and use defaults →
-        </button>
-      </motion.div>
-    </div>
-  )
-
-  // Step 1: Language Selection
-  const renderStep1 = () => (
-    <div className="space-y-5">
-      <motion.p
-        className="text-sm text-muted-foreground"
-        initial={{ y: 10, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-      >
-        Select your preferred language. You can always change it later in Settings.
-      </motion.p>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {languages.map((lang, i) => (
-          <motion.button
-            key={lang.code}
-            className={`relative flex items-center gap-3 p-4 rounded-xl border-2 transition-all text-left ${
-              selectedLanguage === lang.code
-                ? 'border-border shadow-sm'
-                : 'border-border hover:border-muted-foreground/30 hover:bg-accent/30'
-            }`}
-            style={selectedLanguage === lang.code ? { borderColor: accentHex, backgroundColor: `${accentHex}15` } : {}}
-            onClick={() => setSelectedLanguage(lang.code)}
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.1 + i * 0.06 }}
-            whileHover={{ scale: 1.02, y: -2 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <span className="text-3xl shrink-0">{lang.flag}</span>
-            <div className="min-w-0">
-              <span className="text-sm font-semibold block">{lang.label}</span>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{lang.code}</span>
-            </div>
-            {selectedLanguage === lang.code && (
-              <motion.div
-                className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: accentHex }}
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 300 }}
-              >
-                <Check className="h-3 w-3 text-white" />
-              </motion.div>
-            )}
-          </motion.button>
+      <div className="flex flex-wrap gap-2">
+        {[
+          { icon: CheckSquare, label: w.featureChips.tasks },
+          { icon: Repeat, label: w.featureChips.habits },
+          { icon: BookOpen, label: w.featureChips.journal },
+          { icon: Wallet, label: w.featureChips.finance },
+          { icon: Target, label: w.featureChips.goals },
+        ].map(f => (
+          <span key={f.label} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground border border-border rounded-full px-3 py-1.5">
+            <f.icon className="h-3.5 w-3.5" />{f.label}
+          </span>
         ))}
       </div>
+
+      <div className="pt-1">
+        <label className="text-sm font-medium mb-1.5 block">{w.nameLabel}</label>
+        <Input
+          placeholder={w.namePlaceholder}
+          value={name}
+          onChange={e => setName(e.target.value)}
+          className="h-10"
+          autoFocus
+        />
+        <p className="text-xs text-muted-foreground mt-1.5">{w.nameHelp}</p>
+      </div>
     </div>
   )
 
-  // Step 2: Database (local-first SQLite)
+  // Step 1: Language
+  const renderStep1 = () => (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+      {languages.map((lang) => {
+        const active = selectedLanguage === lang.code
+        return (
+          <button
+            key={lang.code}
+            className={cn(
+              'relative flex items-center gap-3 p-3.5 rounded-lg border text-left transition-colors',
+              active ? 'border-transparent' : 'border-border hover:bg-accent/40'
+            )}
+            style={sel(active)}
+            onClick={() => { setSelectedLanguage(lang.code); setLanguage(lang.code) }}
+          >
+            <span className="text-2xl shrink-0">{lang.flag}</span>
+            <div className="min-w-0">
+              <span className="text-sm font-medium block truncate">{lang.label}</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{lang.code}</span>
+            </div>
+            {active && (
+              <Check className="absolute top-2.5 right-2.5 h-4 w-4" style={{ color: accentHex }} />
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+
+  // Step 2: Storage
   const renderStep2 = () => (
-    <div className="space-y-3">
-      <p className="text-sm text-muted-foreground mb-4">
-        Life OS stores all your data locally with SQLite — zero configuration, fully private, and yours to export anytime.
-      </p>
-      <Card style={{ borderColor: `${accentHex}30`, backgroundColor: `${accentHex}10` }}>
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <span className="text-2xl">🟢</span>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold">SQLite</span>
-                <Badge className="text-xs" style={{ backgroundColor: `${accentHex}20`, color: accentHex }}>
-                  Recommended
-                </Badge>
-              </div>
-              <p className="text-sm text-muted-foreground mt-0.5">Local-first, privacy-focused storage</p>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {['Zero configuration', 'All data stays on device', 'Fast & lightweight', 'Export anytime'].map((f) => (
-                  <span key={f} className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
-                    {f}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div
-              className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-              style={{ backgroundColor: accentHex }}
-            >
-              <Check className="h-3.5 w-3.5 text-white" />
-            </div>
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground leading-relaxed">{w.storageParagraph}</p>
+      <div className="rounded-lg border p-4" style={{ borderColor: `${accentHex}40`, backgroundColor: `${accentHex}0a` }}>
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-md flex items-center justify-center shrink-0" style={{ backgroundColor: `${accentHex}14`, color: accentHex }}>
+            <Database className="h-4 w-4" />
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-sm">SQLite</span>
+              <Badge className="text-[10px] h-5" style={{ backgroundColor: `${accentHex}1a`, color: accentHex }}>
+                {w.recommended}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">{w.storageSubtitle}</p>
+          </div>
+          <Check className="h-4 w-4 shrink-0 mt-1" style={{ color: accentHex }} />
+        </div>
+        <div className="grid grid-cols-2 gap-2 mt-4">
+          {w.storageFeatures.map((f) => (
+            <div key={f} className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Check className="h-3.5 w-3.5 shrink-0" style={{ color: accentHex }} />{f}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 
-  // Step 3: Theme Customization (after Database)
-  const renderStep3 = () => (
-    <div className="space-y-6">
-      {/* Theme Mode Selection */}
-      <div>
-        <label className="text-sm font-medium mb-3 block">Theme Mode</label>
-        <div className="grid grid-cols-3 gap-3">
-          {themes.map((theme) => {
-            const Icon = theme.icon
-            const isSelected = selectedTheme === theme.id
-            return (
-              <motion.button
-                key={theme.id}
-                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                  isSelected
-                    ? 'border-border shadow-sm'
-                    : 'border-border hover:border-muted-foreground/30'
-                }`}
-                style={isSelected ? { borderColor: accentHex, backgroundColor: `${accentHex}15` } : {}}
-                onClick={() => setSelectedTheme(theme.id)}
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                {/* Preview card */}
-                <div className="w-full h-14 rounded-lg border overflow-hidden shadow-inner mb-1 flex">
-                  {/* Sidebar preview */}
-                  <div
-                    className="w-1/4 h-full"
-                    style={{
-                      background: theme.id === 'system'
-                        ? 'linear-gradient(180deg, #f0f0f0 50%, #222 50%)'
-                        : (theme.previewSidebar || theme.previewBg)
-                    }}
-                  />
-                  {/* Content preview */}
-                  <div className="flex-1 p-1.5 flex flex-col gap-1" style={{ background: theme.previewBg }}>
-                    <div className="h-1.5 w-3/4 rounded-full" style={{ background: theme.id === 'light' ? '#e5e5e5' : theme.id === 'dark' ? '#333' : '#ccc' }} />
-                    <div className="h-1.5 w-1/2 rounded-full" style={{ background: theme.id === 'light' ? '#e5e5e5' : theme.id === 'dark' ? '#333' : '#aaa' }} />
-                    <div className="h-3 w-2/3 rounded mt-0.5" style={{ background: accentHex }} />
+  // Step 3: Appearance
+  const renderStep3 = () => {
+    const modeLabel = (id: AppearanceModeId) =>
+      id === 'light' ? w.themeLight : id === 'dark' ? w.themeDark : id === 'black' ? w.themeBlack : w.themeSystem
+    const fontLabel = (id: string) =>
+      id === 'small' ? w.fontSmall : id === 'large' ? w.fontLarge : w.fontMedium
+    return (
+      <div className="space-y-7">
+        <div>
+          <label className="text-sm font-medium mb-3 block">{w.theme}</label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {appearanceModes.map((mode) => {
+              const Icon = mode.icon
+              const active = selectedMode === mode.id
+              return (
+                <button
+                  key={mode.id}
+                  className={cn(
+                    'relative flex flex-col gap-2.5 p-2.5 rounded-lg border transition-colors',
+                    active ? 'border-transparent' : 'border-border hover:bg-accent/40'
+                  )}
+                  style={sel(active)}
+                  onClick={() => setSelectedMode(mode.id)}
+                >
+                  <div className="w-full h-12 rounded-md border border-border/60 overflow-hidden flex">
+                    <div className="w-1/3 h-full" style={{ background: mode.sidebar }} />
+                    <div className="flex-1 p-1.5 flex flex-col gap-1" style={{ background: mode.bg }}>
+                      <div className="h-1 w-3/4 rounded-full" style={{ background: accentHex }} />
+                      <div className="h-1 w-1/2 rounded-full bg-muted-foreground/30" />
+                    </div>
                   </div>
-                </div>
-                <Icon className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">{theme.label}</span>
-                {isSelected && (
-                  <motion.div
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center"
-                    style={{ backgroundColor: accentHex }}
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 300 }}
-                  >
-                    <Check className="h-3 w-3 text-white" />
-                  </motion.div>
-                )}
-              </motion.button>
-            )
-          })}
+                  <div className="flex items-center gap-1.5">
+                    <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs font-medium">{modeLabel(mode.id)}</span>
+                  </div>
+                  {active && <Check className="absolute top-2 right-2 h-3.5 w-3.5" style={{ color: accentHex }} />}
+                </button>
+              )
+            })}
+          </div>
         </div>
-      </div>
 
-      {/* Accent Color */}
-      <div>
-        <label className="text-sm font-medium mb-3 block">Accent Color</label>
-        <div className="grid grid-cols-6 gap-3">
-          {accentColors.map((ac) => (
-            <motion.button
-              key={ac.id}
-              className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${
-                selectedAccent === ac.id
-                  ? 'border-transparent shadow-sm'
-                  : 'border-transparent hover:bg-accent/30'
-              }`}
-              style={selectedAccent === ac.id ? { borderColor: ac.color, backgroundColor: `${ac.color}15` } : {}}
-              onClick={() => setSelectedAccent(ac.id)}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              title={ac.label}
-            >
-              <div
-                className={`w-10 h-10 rounded-full transition-all ${
-                  selectedAccent === ac.id ? 'ring-2 ring-offset-2 ring-offset-background' : ''
-                }`}
-                style={{
-                  backgroundColor: ac.color,
-                  ...(selectedAccent === ac.id ? { boxShadow: `0 0 0 2px var(--background), 0 0 0 4px ${ac.color}` } : {}),
-                }}
-              >
-                {selectedAccent === ac.id && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 300 }}
-                    className="w-full h-full flex items-center justify-center"
+        <div>
+          <label className="text-sm font-medium mb-3 block">{w.accentColor}</label>
+          <div className="flex flex-wrap gap-2.5">
+            {accentColors.map((ac) => {
+              const active = selectedAccent === ac.id
+              return (
+                <button
+                  key={ac.id}
+                  className="flex flex-col items-center gap-1.5"
+                  onClick={() => setSelectedAccent(ac.id)}
+                  title={ac.label}
+                >
+                  <span
+                    className={cn('w-9 h-9 rounded-full flex items-center justify-center transition-transform', active && 'scale-105')}
+                    style={{
+                      backgroundColor: ac.color,
+                      boxShadow: active ? `0 0 0 2px var(--background), 0 0 0 4px ${ac.color}` : undefined,
+                    }}
                   >
-                    <Check className="h-4 w-4 text-white drop-shadow-sm" />
-                  </motion.div>
-                )}
-              </div>
-              <span className="text-[10px] font-medium text-muted-foreground">{ac.label}</span>
-            </motion.button>
-          ))}
+                    {active && <Check className="h-4 w-4 text-white" />}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">{ac.label}</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
-      </div>
 
-      {/* Font Size */}
-      <div>
-        <label className="text-sm font-medium mb-3 block">Font Size</label>
-        <div className="grid grid-cols-3 gap-3">
-          {fontSizes.map((fs) => (
-            <motion.button
-              key={fs.id}
-              className={`flex flex-col items-center gap-1 p-4 rounded-xl border-2 transition-all ${
-                selectedFontSize === fs.id
-                  ? 'border-border shadow-sm'
-                  : 'border-border hover:border-muted-foreground/30'
-              }`}
-              style={selectedFontSize === fs.id ? { borderColor: accentHex, backgroundColor: `${accentHex}15` } : {}}
-              onClick={() => setSelectedFontSize(fs.id)}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-            >
-              <span className={`${fs.size} font-bold text-foreground`}>{fs.sample}</span>
-              <span className="text-xs text-muted-foreground">{fs.label}</span>
-            </motion.button>
-          ))}
+        <div>
+          <label className="text-sm font-medium mb-3 block">{w.fontSize}</label>
+          <div className="grid grid-cols-3 gap-2.5">
+            {fontSizes.map((fs) => {
+              const active = selectedFontSize === fs.id
+              return (
+                <button
+                  key={fs.id}
+                  className={cn(
+                    'flex flex-col items-center gap-1 py-3.5 rounded-lg border transition-colors',
+                    active ? 'border-transparent' : 'border-border hover:bg-accent/40'
+                  )}
+                  style={sel(active)}
+                  onClick={() => setSelectedFontSize(fs.id)}
+                >
+                  <span className={cn(fs.size, 'font-semibold')}>{fs.sample}</span>
+                  <span className="text-xs text-muted-foreground">{fontLabel(fs.id)}</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   // Step 4: Modules
   const renderStep4 = () => (
     <div className="space-y-5">
-      <p className="text-sm text-muted-foreground">
-        Choose which modules you&apos;d like to use. You can always enable or disable them later in Settings.
-      </p>
+      <p className="text-sm text-muted-foreground">{w.modulesIntro}</p>
       {moduleCategories.map((category) => (
         <div key={category.name}>
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              {category.name}
+            <h4 className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider">
+              {w.categories[category.name] ?? category.name}
             </h4>
             {category.modules.some(m => !m.required) && (
-              <div className="flex items-center gap-2">
-                <button
-                  className="text-xs font-medium"
-                  style={{ color: accentHex }}
-                  onClick={() => toggleCategory(category.name, true)}
-                >
-                  Select All
-                </button>
-                <span className="text-muted-foreground/40">|</span>
-                <button
-                  className="text-xs text-muted-foreground hover:text-foreground font-medium"
-                  onClick={() => toggleCategory(category.name, false)}
-                >
-                  Deselect All
-                </button>
+              <div className="flex items-center gap-2 text-[11px]">
+                <button className="font-medium hover:underline" style={{ color: accentHex }} onClick={() => toggleCategory(category.name, true)}>{w.all}</button>
+                <span className="text-muted-foreground/30">·</span>
+                <button className="text-muted-foreground hover:text-foreground" onClick={() => toggleCategory(category.name, false)}>{w.none}</button>
               </div>
             )}
           </div>
@@ -678,32 +671,27 @@ export function SetupWizard() {
             {category.modules.map((mod) => {
               const Icon = mod.icon
               const isEnabled = enabledModules.has(mod.id)
-              const isRequired = mod.required
+              const copy = w.modules[mod.id]
               return (
-                <motion.div
+                <div
                   key={mod.id}
-                  className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
-                    isEnabled
-                      ? 'border-border'
-                      : 'border-border opacity-60'
-                  }`}
-                  style={isEnabled ? { borderColor: `${accentHex}80`, backgroundColor: `${accentHex}10` } : {}}
-                  whileHover={{ scale: 1.01 }}
-                >
-                  <Icon className={`h-5 w-5 shrink-0 ${isEnabled ? '' : 'text-muted-foreground'}`} style={isEnabled ? { color: accentHex } : {}} />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm font-medium">{mod.label}</span>
-                    <p className="text-xs text-muted-foreground truncate">{mod.description}</p>
-                  </div>
-                  {isRequired ? (
-                    <Badge variant="secondary" className="text-xs shrink-0">Required</Badge>
-                  ) : (
-                    <Switch
-                      checked={isEnabled}
-                      onCheckedChange={() => toggleModule(mod.id)}
-                    />
+                  className={cn(
+                    'flex items-center gap-3 p-3 rounded-lg border transition-colors',
+                    isEnabled ? 'border-transparent' : 'border-border'
                   )}
-                </motion.div>
+                  style={sel(isEnabled)}
+                >
+                  <Icon className="h-4 w-4 shrink-0" style={{ color: isEnabled ? accentHex : undefined }} />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium block">{copy?.label}</span>
+                    <p className="text-xs text-muted-foreground truncate">{copy?.desc}</p>
+                  </div>
+                  {mod.required ? (
+                    <Badge variant="secondary" className="text-[10px] h-5 shrink-0">{w.required}</Badge>
+                  ) : (
+                    <Switch checked={isEnabled} onCheckedChange={() => toggleModule(mod.id)} />
+                  )}
+                </div>
               )
             })}
           </div>
@@ -712,449 +700,293 @@ export function SetupWizard() {
     </div>
   )
 
-  // Step 5: Dashboard Layout
+  // Step 5: Dashboard widgets
   const renderStep5 = () => (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Choose which widgets to show on your dashboard. You can rearrange them later.
-      </p>
-      <div className="space-y-2">
-        {dashboardWidgetOptions.map((widget) => {
-          const Icon = widget.icon
-          const isEnabled = selectedWidgets.has(widget.id)
-          return (
-            <motion.div
-              key={widget.id}
-              className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                isEnabled
-                  ? 'border-border'
-                  : 'border-border'
-              }`}
-              style={isEnabled ? { borderColor: `${accentHex}66`, backgroundColor: `${accentHex}10` } : {}}
-              whileHover={{ scale: 1.005 }}
+    <div className="space-y-2.5">
+      <p className="text-sm text-muted-foreground mb-1">{w.widgetsIntro}</p>
+      {dashboardWidgetOptions.map((widget) => {
+        const Icon = widget.icon
+        const isEnabled = selectedWidgets.has(widget.id)
+        const copy = w.widgets[widget.id]
+        return (
+          <div
+            key={widget.id}
+            className={cn(
+              'flex items-center gap-3 p-3 rounded-lg border transition-colors',
+              isEnabled ? 'border-transparent' : 'border-border'
+            )}
+            style={sel(isEnabled)}
+          >
+            <div
+              className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
+              style={isEnabled ? { backgroundColor: `${accentHex}14`, color: accentHex } : undefined}
             >
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                isEnabled ? '' : 'bg-muted'
-              }`}
-              style={isEnabled ? { backgroundColor: `${accentHex}20` } : {}}
-              >
-                <Icon className={`h-4 w-4 ${isEnabled ? '' : 'text-muted-foreground'}`} style={isEnabled ? { color: accentHex } : {}} />
+              <Icon className={cn('h-4 w-4', !isEnabled && 'text-muted-foreground')} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-medium block">{copy?.label}</span>
+              <p className="text-xs text-muted-foreground truncate">{copy?.desc}</p>
+            </div>
+            <Switch checked={isEnabled} onCheckedChange={() => toggleWidget(widget.id)} />
+          </div>
+        )
+      })}
+    </div>
+  )
+
+  // Step 6: Quick setup
+  const renderStep6 = () => (
+    <div className="space-y-5">
+      <p className="text-sm text-muted-foreground">{w.quickIntro}</p>
+      <div className="grid grid-cols-2 gap-3">
+        {([
+          { id: 'fresh', icon: Zap, title: w.startFresh, desc: w.startFreshDesc },
+          { id: 'import', icon: FileUp, title: w.importBackup, desc: w.importBackupDesc },
+        ] as const).map((opt) => {
+          const Icon = opt.icon
+          const active = setupMode === opt.id
+          return (
+            <button
+              key={opt.id}
+              className={cn(
+                'flex flex-col items-start gap-2.5 p-4 rounded-lg border text-left transition-colors',
+                active ? 'border-transparent' : 'border-border hover:bg-accent/40'
+              )}
+              style={sel(active)}
+              onClick={() => setSetupMode(opt.id)}
+            >
+              <div className="w-9 h-9 rounded-md flex items-center justify-center" style={active ? { backgroundColor: `${accentHex}14`, color: accentHex } : undefined}>
+                <Icon className={cn('h-4 w-4', !active && 'text-muted-foreground')} />
               </div>
-              <div className="flex-1 min-w-0">
-                <span className="text-sm font-medium">{widget.label}</span>
-                <p className="text-xs text-muted-foreground">{widget.description}</p>
+              <div>
+                <span className="text-sm font-medium block">{opt.title}</span>
+                <span className="text-xs text-muted-foreground">{opt.desc}</span>
               </div>
-              <Switch
-                checked={isEnabled}
-                onCheckedChange={() => toggleWidget(widget.id)}
-              />
-            </motion.div>
+            </button>
           )
         })}
       </div>
-    </div>
-  )
 
-  // Step 6: Quick Setup
-  const renderStep6 = () => (
-    <div className="space-y-6">
-      <p className="text-sm text-muted-foreground">
-        Would you like to start fresh or import existing data from a backup?
-      </p>
-      <div className="grid grid-cols-2 gap-4">
-        <motion.button
-          className={`flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all ${
-            setupMode === 'fresh'
-              ? 'border-border shadow-sm'
-              : 'border-border hover:border-muted-foreground/30'
-          }`}
-          style={setupMode === 'fresh' ? { borderColor: accentHex, backgroundColor: `${accentHex}15` } : {}}
-          onClick={() => setSetupMode('fresh')}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <div className={`w-14 h-14 rounded-full flex items-center justify-center ${
-            setupMode === 'fresh' ? '' : 'bg-muted'
-          }`}
-          style={setupMode === 'fresh' ? { backgroundColor: `${accentHex}20` } : {}}
-          >
-            <Zap className={`h-6 w-6 ${setupMode === 'fresh' ? '' : 'text-muted-foreground'}`} style={setupMode === 'fresh' ? { color: accentHex } : {}} />
-          </div>
-          <span className="font-semibold">Start Fresh</span>
-          <span className="text-xs text-muted-foreground text-center">
-            Begin with a clean slate and build your Life OS from scratch
-          </span>
-          {setupMode === 'fresh' && (
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 300 }}
-            >
-              <Check className="h-5 w-5" style={{ color: accentHex }} />
-            </motion.div>
-          )}
-        </motion.button>
-
-        <motion.button
-          className={`flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all ${
-            setupMode === 'import'
-              ? 'border-border shadow-sm'
-              : 'border-border hover:border-muted-foreground/30'
-          }`}
-          style={setupMode === 'import' ? { borderColor: accentHex, backgroundColor: `${accentHex}15` } : {}}
-          onClick={() => setSetupMode('import')}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <div className={`w-14 h-14 rounded-full flex items-center justify-center ${
-            setupMode === 'import' ? '' : 'bg-muted'
-          }`}
-          style={setupMode === 'import' ? { backgroundColor: `${accentHex}20` } : {}}
-          >
-            <FileUp className={`h-6 w-6 ${setupMode === 'import' ? '' : 'text-muted-foreground'}`} style={setupMode === 'import' ? { color: accentHex } : {}} />
-          </div>
-          <span className="font-semibold">Import Backup</span>
-          <span className="text-xs text-muted-foreground text-center">
-            Restore your data from a previous Life OS backup file
-          </span>
-          {setupMode === 'import' && (
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 300 }}
-            >
-              <Check className="h-5 w-5" style={{ color: accentHex }} />
-            </motion.div>
-          )}
-        </motion.button>
-      </div>
-
-      {setupMode === 'import' && (
-        <motion.div
-          initial={{ y: 10, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          className="space-y-3"
-        >
-          <Card className="bg-muted/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <Upload className="h-5 w-5" style={{ color: accentHex }} />
-                <div>
-                  <p className="font-medium text-sm">Import from JSON</p>
-                  <p className="text-xs text-muted-foreground">
-                    Select your Life OS backup file to restore all your data
-                  </p>
-                </div>
-              </div>
-              <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center transition-colors cursor-pointer" style={{ borderColor: `${accentHex}50` }}>
-                <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  Click to select or drag &amp; drop your backup file
-                </p>
-                <p className="text-xs text-muted-foreground/60 mt-1">
-                  Supports .json files exported from Life OS
-                </p>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Importable data: Tasks, Notes, Habits, Journal entries, Finance records, Health data, Goals, and Learning progress.
-              </p>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-
-      {setupMode === 'fresh' && (
-        <motion.div
-          initial={{ y: 10, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-        >
-          <Card style={{ backgroundColor: `${accentHex}08`, borderColor: `${accentHex}30` }}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <Sparkles className="h-5 w-5" style={{ color: accentHex }} />
-                <div>
-                  <p className="font-medium text-sm">Starting fresh</p>
-                  <p className="text-xs text-muted-foreground">
-                    Life OS will be set up with sample data to help you get started. You can always modify or delete it later.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+      {setupMode === 'import' ? (
+        <Card className="bg-muted/30 border-border">
+          <CardContent className="p-4">
+            <div className="border border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-accent/30 transition-colors" style={{ borderColor: `${accentHex}50` }}>
+              <Upload className="h-7 w-7 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">{w.importDrop}</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">{w.importDropSub}</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex items-start gap-3 rounded-lg border p-3.5" style={{ borderColor: `${accentHex}30`, backgroundColor: `${accentHex}0a` }}>
+          <Sparkles className="h-4 w-4 shrink-0 mt-0.5" style={{ color: accentHex }} />
+          <p className="text-xs text-muted-foreground leading-relaxed">{w.freshNote}</p>
+        </div>
       )}
     </div>
   )
 
-  // Step 7: All Set! (final summary)
+  // Step 7: All set
   const renderStep7 = () => {
     const langLabel = languages.find(l => l.code === selectedLanguage)?.label ?? 'English'
     const langFlag = languages.find(l => l.code === selectedLanguage)?.flag ?? '🇬🇧'
-    const themeLabel = themes.find(t => t.id === selectedTheme)?.label ?? 'System'
-    const themeEmoji = themes.find(t => t.id === selectedTheme)?.emoji ?? '🔄'
+    const themeLabel =
+      selectedMode === 'light' ? w.themeLight : selectedMode === 'dark' ? w.themeDark : selectedMode === 'black' ? w.themeBlack : w.themeSystem
     const accentLabel = accentColors.find(a => a.id === selectedAccent)?.label ?? 'Emerald'
-    const accentColor = accentColors.find(a => a.id === selectedAccent)?.color ?? '#10b981'
-    const fontSizeLabel = fontSizes.find(f => f.id === selectedFontSize)?.label ?? 'Medium'
-    const enabledCount = enabledModules.size
-    const widgetCount = selectedWidgets.size
 
     const summaryItems = [
-      { label: 'Name', value: name || 'Not set', icon: '👤' },
-      { label: 'Language', value: `${langFlag} ${langLabel}`, icon: '🌐' },
-      { label: 'Database', value: 'SQLite 🟢', icon: '💾' },
-      { label: 'Theme', value: `${themeEmoji} ${themeLabel}`, icon: '🎨' },
-      { label: 'Accent', value: accentLabel, icon: '✨', color: accentColor },
-      { label: 'Font Size', value: fontSizeLabel, icon: '📝' },
-      { label: 'Modules', value: `${enabledCount} enabled`, icon: '📦' },
-      { label: 'Widgets', value: `${widgetCount} active`, icon: '📊' },
-      { label: 'Setup', value: setupMode === 'fresh' ? 'Start Fresh' : 'Import Backup', icon: setupMode === 'fresh' ? '⚡' : '📂' },
+      { label: w.sName, value: name || w.notSet },
+      { label: w.sLanguage, value: `${langFlag} ${langLabel}` },
+      { label: w.sStorage, value: 'SQLite' },
+      { label: w.sTheme, value: themeLabel },
+      { label: w.sAccent, value: accentLabel, dot: accentHex },
+      { label: w.sModules, value: `${enabledModules.size} ${w.modulesEnabledSuffix}` },
     ]
 
     return (
-      <div className="space-y-5">
-        <motion.div
-          className="text-center"
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 200 }}
-        >
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
           <motion.div
-            className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg"
-            style={{ background: `linear-gradient(to bottom right, ${accentHex}, ${accentHex}cc)` }}
-            animate={{ rotate: [0, 5, -5, 0] }}
-            transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 2 }}
+            className="w-11 h-11 rounded-full flex items-center justify-center shrink-0"
+            style={{ backgroundColor: accentHex }}
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 16 }}
           >
-            <PartyPopper className="h-10 w-10 text-white" />
+            <Check className="h-6 w-6 text-white" />
           </motion.div>
-          <h2 className="text-2xl font-bold">You&apos;re all set{name ? `, ${name}` : ''}!</h2>
-          <p className="text-muted-foreground mt-1">
-            Life OS is ready to help you organize your life.
-          </p>
-        </motion.div>
+          <div>
+            <h3 className="text-lg font-semibold tracking-tight">{w.allSetHeading}{name ? `, ${name}` : ''}</h3>
+            <p className="text-sm text-muted-foreground">{w.allSetSub}</p>
+          </div>
+        </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-3 gap-2">
-          {summaryItems.map((item, i) => (
-            <motion.div
-              key={item.label}
-              className="flex items-center gap-2 p-2.5 rounded-lg border bg-muted/30"
-              initial={{ y: 10, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.1 + i * 0.05 }}
-            >
-              <span className="text-base">{item.icon}</span>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">{item.label}</p>
-                <div className="flex items-center gap-1">
-                  {item.color && (
-                    <span
-                      className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
-                      style={{ backgroundColor: item.color }}
-                    />
-                  )}
-                  <span className="text-xs font-medium truncate">{item.value}</span>
-                </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-px bg-border rounded-lg overflow-hidden border border-border">
+          {summaryItems.map((item) => (
+            <div key={item.label} className="bg-background p-3">
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">{item.label}</p>
+              <div className="flex items-center gap-1.5 mt-1">
+                {item.dot && <span className="w-2.5 h-2.5 rounded-full inline-block shrink-0" style={{ backgroundColor: item.dot }} />}
+                <span className="text-sm font-medium truncate">{item.value}</span>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
 
-        {/* Enabled Modules */}
-        <motion.div
-          initial={{ y: 10, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.5 }}
-        >
+        <div>
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-2">{w.enabledModulesLabel}</p>
           <div className="flex flex-wrap gap-1.5">
             {allModules.filter(m => enabledModules.has(m.id)).map(m => {
               const Icon = m.icon
               return (
-                <Badge key={m.id} variant="secondary" className="gap-1.5 py-1.5">
-                  <Icon className="h-3 w-3" />{m.label}
+                <Badge key={m.id} variant="secondary" className="gap-1.5 py-1 font-normal">
+                  <Icon className="h-3 w-3" />{w.modules[m.id]?.label}
                 </Badge>
               )
             })}
           </div>
-        </motion.div>
-
-        {/* Launch Button */}
-        <motion.div
-          className="relative"
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.6 }}
-        >
-          <Button
-            onClick={handleLaunch}
-            className="w-full h-14 text-lg font-semibold shadow-lg relative overflow-hidden"
-            style={{ background: `linear-gradient(to right, ${accentHex}, ${accentHex}cc)` }}
-          >
-            <motion.div
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-              animate={{ x: ['-100%', '100%'] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-            />
-            <Rocket className="h-5 w-5 mr-2" />
-            Launch Life OS
-          </Button>
-          {showConfetti && <ConfettiExplosion accentHex={accentHex} />}
-        </motion.div>
+        </div>
       </div>
     )
   }
 
   const stepRenderers = [
-    renderStep0,
-    renderStep1,
-    renderStep2,
-    renderStep3,
-    renderStep4,
-    renderStep5,
-    renderStep6,
-    renderStep7,
+    renderStep0, renderStep1, renderStep2, renderStep3,
+    renderStep4, renderStep5, renderStep6, renderStep7,
   ]
 
-  // ─── Gradient backgrounds per step ──────────────────────────────
-
-  const stepGradients = [
-    { background: `linear-gradient(to bottom right, ${accentHex}0d, transparent, ${accentHex}0d)` },
-    { background: 'linear-gradient(to bottom right, rgba(14,165,233,0.05), transparent, rgba(59,130,246,0.05))' },
-    { background: 'linear-gradient(to bottom right, rgba(59,130,246,0.05), transparent, rgba(6,182,212,0.05))' },
-    { background: 'linear-gradient(to bottom right, rgba(139,92,246,0.05), transparent, rgba(168,85,247,0.05))' },
-    { background: 'linear-gradient(to bottom right, rgba(245,158,11,0.05), transparent, rgba(249,115,22,0.05))' },
-    { background: 'linear-gradient(to bottom right, rgba(244,63,94,0.05), transparent, rgba(236,72,153,0.05))' },
-    { background: `linear-gradient(to bottom right, ${accentHex}0d, transparent, ${accentHex}0d)` },
-    { background: `linear-gradient(to bottom right, ${accentHex}0d, transparent, ${accentHex}0d)` },
-  ]
+  const StepIcon = stepIcons[step]
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 transition-colors duration-500"
-    style={stepGradients[step]}>
-      <CelebrationOverlay show={showCelebration} />
-      <div className="w-full max-w-2xl">
-        {/* Header with step indicator */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold"
-            style={{ background: `linear-gradient(to bottom right, ${accentHex}, ${accentHex}cc)` }}>
-              L
-            </div>
-            <span className="font-semibold text-lg">Life OS</span>
+    <div className="min-h-screen flex bg-background">
+      {/* ─── Left brand panel (desktop) ─── */}
+      <aside className="hidden md:flex flex-col w-[320px] shrink-0 border-r border-border bg-muted/30 p-8">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-foreground flex items-center justify-center">
+            <span className="text-background text-sm font-bold leading-none">L</span>
           </div>
-          <div className="text-sm text-muted-foreground font-medium">
-            {step + 1}/{TOTAL_STEPS}
-          </div>
+          <span className="font-semibold">Life OS</span>
         </div>
 
-        {/* Progress Bar */}
-        <div className="mb-5">
-          <Progress value={progressPercent} className="h-1.5" />
+        <div className="mt-10">
+          <h1 className="text-xl font-semibold tracking-tight leading-snug">
+            {w.brandLine1}<br />{w.brandLine2}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{w.brandSub}</p>
         </div>
 
-        <div className="flex gap-6">
-          {/* Vertical Step Indicator (desktop) */}
-          <div className="hidden md:flex flex-col items-center gap-1 py-4 shrink-0">
-            {wizardSteps.map((s, i) => {
-              const Icon = s.icon
-              return (
-                <button
-                  key={i}
-                  className="group flex items-center gap-3 w-full"
-                  onClick={() => goToStep(i)}
-                >
-                  <motion.div
-                    className={`flex items-center justify-center w-9 h-9 rounded-full text-sm font-medium transition-all shrink-0 ${
-                      i < step
-                        ? 'text-white'
-                        : i === step
-                          ? 'bg-primary text-primary-foreground ring-2 ring-primary/20'
-                          : 'bg-muted text-muted-foreground'
-                    }`}
-                    style={i < step ? { backgroundColor: accentHex } : {}}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    {i < step ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
-                  </motion.div>
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Main content area */}
-          <div className="flex-1 min-w-0">
-            {/* Mobile horizontal step indicator */}
-            <div className="flex md:hidden items-center justify-center gap-1 mb-4">
-              {wizardSteps.map((_, i) => (
-                <motion.div
-                  key={i}
-                  className={`h-1.5 rounded-full transition-all ${
-                    i === step ? 'w-8 bg-primary' : i < step ? 'w-4' : 'w-4 bg-muted'
-                  }`}
-                  style={i < step ? { backgroundColor: accentHex } : {}}
-                  layout
-                />
-              ))}
-            </div>
-
-            <Card className="overflow-hidden">
-              <CardContent className="p-6">
-                {/* Step title with step number */}
-                <div className="mb-5">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={`title-${step}`}
-                      initial={{ y: -10, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      exit={{ y: 10, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-full"
-                        style={{ color: accentHex, backgroundColor: `${accentHex}20` }}>
-                          {step + 1}/{TOTAL_STEPS}
-                        </span>
-                        <h2 className="text-xl font-bold">{wizardSteps[step].title}</h2>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-0.5">{wizardSteps[step].description}</p>
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
-
-                {/* Step content with slide animation */}
-                <AnimatePresence mode="wait" custom={direction}>
-                  <motion.div
-                    key={step}
-                    custom={direction}
-                    variants={slideVariants}
-                    initial="enter"
-                    animate="center"
-                    exit="exit"
-                    transition={{ duration: 0.3, ease: 'easeInOut' }}
-                  >
-                    {stepRenderers[step]()}
-                  </motion.div>
-                </AnimatePresence>
-              </CardContent>
-            </Card>
-
-            {/* Navigation */}
-            <div className="flex items-center justify-between mt-4">
-              <Button
-                variant="outline"
-                onClick={prevStep}
-                disabled={step === 0}
-                className="gap-1"
+        <nav className="mt-8 flex-1 space-y-0.5">
+          {w.steps.map((s, i) => {
+            const isActive = i === step
+            const isDone = i < step
+            const clickable = i <= step
+            return (
+              <button
+                key={i}
+                onClick={() => clickable && goToStep(i)}
+                disabled={!clickable}
+                className={cn(
+                  'w-full flex items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors',
+                  isActive ? 'bg-accent' : clickable ? 'hover:bg-accent/50' : 'opacity-40 cursor-not-allowed'
+                )}
               >
-                <ChevronLeft className="h-4 w-4" />Back
-              </Button>
-              {step < TOTAL_STEPS - 1 ? (
-                <Button onClick={nextStep} className="gap-1" style={{ backgroundColor: accentHex }}>
-                  Next<ChevronRight className="h-4 w-4" />
-                </Button>
-              ) : null}
+                <span
+                  className={cn(
+                    'w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-medium shrink-0 border',
+                    isDone || isActive ? 'border-transparent text-white' : 'border-border text-muted-foreground'
+                  )}
+                  style={isDone || isActive ? { backgroundColor: accentHex } : undefined}
+                >
+                  {isDone ? <Check className="h-3.5 w-3.5" /> : i + 1}
+                </span>
+                <span className={cn('text-sm truncate', isActive ? 'font-medium' : 'text-muted-foreground')}>
+                  {s.title}
+                </span>
+              </button>
+            )
+          })}
+        </nav>
+
+        <p className="text-xs text-muted-foreground/60 mt-6">
+          {w.stepOf.replace('{n}', String(step + 1)).replace('{total}', String(TOTAL_STEPS))}
+        </p>
+      </aside>
+
+      {/* ─── Right content ─── */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top progress line */}
+        <div className="h-0.5 bg-border/60 shrink-0">
+          <div className="h-full transition-all duration-500 ease-out" style={{ width: `${progressPercent}%`, backgroundColor: accentHex }} />
+        </div>
+
+        {/* Mobile header */}
+        <div className="md:hidden flex items-center justify-between px-5 h-14 border-b border-border shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-md bg-foreground flex items-center justify-center">
+              <span className="text-background text-xs font-bold leading-none">L</span>
             </div>
+            <span className="font-semibold text-sm">Life OS</span>
           </div>
+          <span className="text-xs text-muted-foreground">{step + 1}/{TOTAL_STEPS}</span>
+        </div>
+
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-auto">
+          <div className="mx-auto w-full max-w-xl px-6 md:px-10 py-8 md:py-12">
+            {/* Step header */}
+            <div className="mb-7">
+              <div className="flex items-center gap-2.5 mb-1.5">
+                <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0" style={{ backgroundColor: `${accentHex}14`, color: accentHex }}>
+                  <StepIcon className="h-4 w-4" />
+                </div>
+                <h2 className="text-xl font-semibold tracking-tight">{w.steps[step].title}</h2>
+              </div>
+              <p className="text-sm text-muted-foreground">{w.steps[step].description}</p>
+            </div>
+
+            {/* Step body */}
+            <AnimatePresence mode="wait" custom={direction}>
+              <motion.div
+                key={step}
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.22, ease: 'easeOut' }}
+              >
+                {stepRenderers[step]()}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* Footer nav */}
+        <div className="border-t border-border px-6 md:px-10 py-4 flex items-center justify-between gap-3 shrink-0">
+          {step === 0 ? (
+            <Button variant="ghost" onClick={handleLaunch} disabled={launching} className="text-muted-foreground hover:text-foreground">
+              {w.skipSetup}
+            </Button>
+          ) : (
+            <Button variant="ghost" onClick={prevStep} className="gap-1.5">
+              <ChevronLeft className="h-4 w-4" />{w.back}
+            </Button>
+          )}
+
+          <Button
+            onClick={step === TOTAL_STEPS - 1 ? handleLaunch : nextStep}
+            disabled={launching}
+            className="gap-1.5 text-white min-w-[130px] hover:opacity-90"
+            style={{ backgroundColor: accentHex }}
+          >
+            {launching ? (
+              w.settingUp
+            ) : step === TOTAL_STEPS - 1 ? (
+              <><Rocket className="h-4 w-4" />{w.launch}</>
+            ) : (
+              <>{w.continue}<ChevronRight className="h-4 w-4" /></>
+            )}
+          </Button>
         </div>
       </div>
     </div>

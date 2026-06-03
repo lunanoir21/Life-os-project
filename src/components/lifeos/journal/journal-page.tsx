@@ -12,6 +12,7 @@ import {
   TrendingUp,
   Star,
   Trash2,
+  Pencil,
   BookOpen,
   Sparkles,
   Flame,
@@ -29,7 +30,7 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { motion } from 'framer-motion'
 import type { JournalEntry } from '@/stores/journal-store'
-import { useJournal, useCreateJournalEntry, useDeleteJournalEntry } from '@/lib/api/hooks'
+import { useJournal, useCreateJournalEntry, useUpdateJournalEntry, useDeleteJournalEntry } from '@/lib/api/hooks'
 import { useAppStore } from '@/stores/app-store'
 import { useTranslation } from '@/lib/i18n'
 import { showToast } from '@/lib/toast'
@@ -97,6 +98,7 @@ export function JournalPage() {
   const accentHex = accentHexMap[accentColor] || '#10b981'
   const { data: apiJournal, isLoading } = useJournal()
   const createEntryMutation = useCreateJournalEntry()
+  const updateEntryMutation = useUpdateJournalEntry()
   const deleteEntryMutation = useDeleteJournalEntry()
 
   const entries: JournalEntry[] = useMemo(() => {
@@ -109,6 +111,8 @@ export function JournalPage() {
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editContent, setEditContent] = useState('')
   const [newEntry, setNewEntry] = useState({
     title: '',
     content: '',
@@ -189,6 +193,21 @@ export function JournalPage() {
     })
   }, [newEntry, createEntryMutation, t])
 
+  const openEditEntry = useCallback((entry: JournalEntry) => {
+    setEditContent(entry.content)
+    setEditDialogOpen(true)
+  }, [])
+
+  const handleUpdateEntry = useCallback(() => {
+    if (!selectedEntry || !editContent.trim()) return
+    updateEntryMutation.mutate({ id: selectedEntry.id, content: editContent }, {
+      onSuccess: () => {
+        setEditDialogOpen(false)
+        showToast.success(t('toast.saved'))
+      }
+    })
+  }, [selectedEntry, editContent, updateEntryMutation, t])
+
   const deleteEntry = useCallback((id: string) => {
     deleteEntryMutation.mutate(id)
     if (selectedEntryId === id) setSelectedEntryId(null)
@@ -242,7 +261,7 @@ export function JournalPage() {
               </TabsList>
             </Tabs>
             <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-              <DialogTrigger asChild><Button size="sm" className="text-white shadow-sm" style={{ background: `linear-gradient(to right, ${accentHex}, ${accentHex}cc)` }}><Plus className="h-4 w-4 mr-1.5" />{t('journal.newEntry')}</Button></DialogTrigger>
+              <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1.5" />{t('journal.newEntry')}</Button></DialogTrigger>
               <DialogContent className="max-w-lg" aria-describedby={undefined}>
                 <DialogHeader><DialogTitle>{t('journal.newEntry')}</DialogTitle><DialogDescription className="sr-only">Write a new journal entry</DialogDescription></DialogHeader>
                 <div className="space-y-4 py-2">
@@ -410,11 +429,30 @@ export function JournalPage() {
         </ScrollArea>
       </div>
 
+      {/* Edit Entry Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-lg" aria-describedby={undefined}>
+          <DialogHeader><DialogTitle>{t('edit')} {t('journal.journalEntry')}</DialogTitle><DialogDescription className="sr-only">Edit journal entry</DialogDescription></DialogHeader>
+          <div className="py-2">
+            <Textarea value={editContent} onChange={e => setEditContent(e.target.value)} rows={8} className="resize-none" />
+          </div>
+          <DialogFooter><DialogClose asChild><Button variant="outline">{t('cancel')}</Button></DialogClose><Button onClick={handleUpdateEntry} disabled={updateEntryMutation.isPending}>{t('save')}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {selectedEntry && (
         <div className="w-80 border-l border-border/50 bg-background shrink-0 hidden md:flex flex-col">
           <ScrollArea className="flex-1">
             <div className="p-5 space-y-4">
-              <div className="flex items-start justify-between"><h3 className="font-semibold">{selectedEntry.title || t('journal.journalEntry')}</h3><Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSelectedEntryId(null)}>✕</Button></div>
+              <div className="flex items-start justify-between">
+                <h3 className="font-semibold">{selectedEntry.title || t('journal.journalEntry')}</h3>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEditEntry(selectedEntry)}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSelectedEntryId(null)}>✕</Button>
+                </div>
+              </div>
               <div className="flex items-center gap-2 flex-wrap">
                 {(() => { const mood = moodConfigs.find(m => m.value === selectedEntry.mood); return mood ? <Badge className={cn(mood.bg, mood.color, 'rounded-full border-0')}>{mood.icon} {t(mood.labelKey)}</Badge> : null })()}
                 <Badge variant="outline">{formatDate(selectedEntry.date)}</Badge>
