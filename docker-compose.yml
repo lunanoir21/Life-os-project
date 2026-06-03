@@ -1,0 +1,18 @@
+services:
+  life-os:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: life-os
+    container_name: life-os
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "file:/app/data/prod.db"
+    volumes:
+      - life-os-data:/app/data
+
+volumes:
+  life-os-data:
