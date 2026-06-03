@@ -164,8 +164,12 @@ fn task_from_row(row: &SqliteRow) -> Result<Task, sqlx::Error> {
         description: row.try_get("description")?,
         status: row.try_get("status")?,
         priority: row.try_get("priority")?,
-        due_date: row.try_get::<Option<i64>, _>("dueDate")?.map(PrismaDateTime),
-        start_date: row.try_get::<Option<i64>, _>("startDate")?.map(PrismaDateTime),
+        due_date: row
+            .try_get::<Option<i64>, _>("dueDate")?
+            .map(PrismaDateTime),
+        start_date: row
+            .try_get::<Option<i64>, _>("startDate")?
+            .map(PrismaDateTime),
         completed_at: row
             .try_get::<Option<i64>, _>("completedAt")?
             .map(PrismaDateTime),
@@ -187,7 +191,9 @@ fn time_entry_from_row(row: &SqliteRow) -> Result<TimeEntry, sqlx::Error> {
         id: row.try_get("id")?,
         description: row.try_get("description")?,
         start_time: PrismaDateTime(row.try_get::<i64, _>("startTime")?),
-        end_time: row.try_get::<Option<i64>, _>("endTime")?.map(PrismaDateTime),
+        end_time: row
+            .try_get::<Option<i64>, _>("endTime")?
+            .map(PrismaDateTime),
         duration: row.try_get("duration")?,
         billable: row.try_get::<i64, _>("billable")? != 0,
         created_at: PrismaDateTime(row.try_get::<i64, _>("createdAt")?),
@@ -202,7 +208,9 @@ fn calendar_event_from_row(row: &SqliteRow) -> Result<CalendarEvent, sqlx::Error
         title: row.try_get("title")?,
         description: row.try_get("description")?,
         start_date: PrismaDateTime(row.try_get::<i64, _>("startDate")?),
-        end_date: row.try_get::<Option<i64>, _>("endDate")?.map(PrismaDateTime),
+        end_date: row
+            .try_get::<Option<i64>, _>("endDate")?
+            .map(PrismaDateTime),
         all_day: row.try_get::<i64, _>("allDay")? != 0,
         color: row.try_get("color")?,
         location: row.try_get("location")?,
@@ -290,7 +298,11 @@ async fn fetch_task_row(db: &SqlitePool, id: &str) -> Result<Option<Task>, sqlx:
 }
 
 /// Attach `project`, `tags`, `subtasks` (and optionally `_count`) to a task.
-async fn enrich_task(db: &SqlitePool, task: Task, with_count: bool) -> Result<TaskFull, sqlx::Error> {
+async fn enrich_task(
+    db: &SqlitePool,
+    task: Task,
+    with_count: bool,
+) -> Result<TaskFull, sqlx::Error> {
     let project = match &task.project_id {
         Some(pid) => fetch_project(db, pid).await?,
         None => None,
@@ -418,10 +430,7 @@ pub async fn create_task(
     let recurrence_config = truthy_str(&body, "recurrenceConfig");
     let project_id = truthy_str(&body, "projectId");
     let parent_task_id = truthy_str(&body, "parentTaskId");
-    let position = body
-        .get("position")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0);
+    let position = body.get("position").and_then(|v| v.as_i64()).unwrap_or(0);
 
     sqlx::query(
         "INSERT INTO Task \
@@ -571,7 +580,8 @@ pub async fn update_task(
     }
     if let Some(v) = body.get("description") {
         sep!();
-        qb.push("description = ").push_bind(v.as_str().map(|s| s.to_string()));
+        qb.push("description = ")
+            .push_bind(v.as_str().map(|s| s.to_string()));
     }
     if let Some(v) = body.get("status").and_then(|v| v.as_str()) {
         sep!();
@@ -607,7 +617,8 @@ pub async fn update_task(
     }
     if let Some(v) = body.get("recurrence") {
         sep!();
-        qb.push("recurrence = ").push_bind(v.as_str().map(|s| s.to_string()));
+        qb.push("recurrence = ")
+            .push_bind(v.as_str().map(|s| s.to_string()));
     }
     if let Some(v) = body.get("recurrenceConfig") {
         sep!();
@@ -616,7 +627,8 @@ pub async fn update_task(
     }
     if let Some(v) = body.get("projectId") {
         sep!();
-        qb.push("projectId = ").push_bind(v.as_str().map(|s| s.to_string()));
+        qb.push("projectId = ")
+            .push_bind(v.as_str().map(|s| s.to_string()));
     }
     if let Some(v) = body.get("parentTaskId") {
         sep!();
@@ -629,7 +641,8 @@ pub async fn update_task(
     }
     if let Some(v) = body.get("archived").and_then(|v| v.as_bool()) {
         sep!();
-        qb.push("archived = ").push_bind(if v { 1_i64 } else { 0_i64 });
+        qb.push("archived = ")
+            .push_bind(if v { 1_i64 } else { 0_i64 });
     }
     if let Some(value) = completed_at {
         sep!();

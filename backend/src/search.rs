@@ -23,13 +23,19 @@ pub(crate) struct SearchResult {
 }
 
 #[derive(Serialize)]
-pub(crate) struct SearchResponse { results: Vec<SearchResult>, query: String }
+pub(crate) struct SearchResponse {
+    results: Vec<SearchResult>,
+    query: String,
+}
 
 pub async fn search(
     State(st): State<AppState>,
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<Json<Value>, AppError> {
-    let q = params.get("q").map(|s| s.trim().to_string()).unwrap_or_default();
+    let q = params
+        .get("q")
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
     if q.len() < 2 {
         return Ok(Json(serde_json::json!({ "results": [], "query": q })));
     }
@@ -48,9 +54,12 @@ pub async fn search(
             id: r.try_get("id").unwrap_or_default(),
             r#type: "Task".to_string(),
             title: r.try_get("title").unwrap_or_default(),
-            description: desc.unwrap_or_else(|| format!("Status: {} · Priority: {}", status, priority)),
+            description: desc
+                .unwrap_or_else(|| format!("Status: {} · Priority: {}", status, priority)),
             updated_at: PrismaDateTime(r.try_get::<i64, _>("updatedAt").unwrap_or(0)),
-            module: "tasks".to_string(), icon: "CheckSquare".to_string(), color: "orange".to_string(),
+            module: "tasks".to_string(),
+            icon: "CheckSquare".to_string(),
+            color: "orange".to_string(),
         });
     }
 
@@ -60,15 +69,27 @@ pub async fn search(
     ).bind(&pat).bind(&pat).fetch_all(&st.db).await.unwrap_or_default();
     for r in &note_rows {
         let content: String = r.try_get("content").unwrap_or_default();
-        let snippet: String = content.chars().take(120).collect::<String>().replace(['#', '*', '_', '\n'], " ").trim().to_string();
+        let snippet: String = content
+            .chars()
+            .take(120)
+            .collect::<String>()
+            .replace(['#', '*', '_', '\n'], " ")
+            .trim()
+            .to_string();
         let note_type: String = r.try_get("type").unwrap_or_default();
         results.push(SearchResult {
             id: r.try_get("id").unwrap_or_default(),
             r#type: "Note".to_string(),
             title: r.try_get("title").unwrap_or_default(),
-            description: if snippet.is_empty() { format!("Type: {}", note_type) } else { snippet },
+            description: if snippet.is_empty() {
+                format!("Type: {}", note_type)
+            } else {
+                snippet
+            },
             updated_at: PrismaDateTime(r.try_get::<i64, _>("updatedAt").unwrap_or(0)),
-            module: "notes".to_string(), icon: "StickyNote".to_string(), color: "amber".to_string(),
+            module: "notes".to_string(),
+            icon: "StickyNote".to_string(),
+            color: "amber".to_string(),
         });
     }
 
@@ -78,16 +99,29 @@ pub async fn search(
     ).bind(&pat).bind(&pat).fetch_all(&st.db).await.unwrap_or_default();
     for r in &journal_rows {
         let content: String = r.try_get("content").unwrap_or_default();
-        let snippet: String = content.chars().take(120).collect::<String>().replace(['#', '*', '_', '\n'], " ").trim().to_string();
+        let snippet: String = content
+            .chars()
+            .take(120)
+            .collect::<String>()
+            .replace(['#', '*', '_', '\n'], " ")
+            .trim()
+            .to_string();
         let mood: Option<String> = r.try_get("mood").ok();
         let title: Option<String> = r.try_get("title").ok();
         results.push(SearchResult {
             id: r.try_get("id").unwrap_or_default(),
             r#type: "Journal".to_string(),
             title: title.unwrap_or_else(|| "Journal entry".to_string()),
-            description: if !snippet.is_empty() { snippet } else { mood.map(|m| format!("Mood: {}", m)).unwrap_or_else(|| "Journal entry".to_string()) },
+            description: if !snippet.is_empty() {
+                snippet
+            } else {
+                mood.map(|m| format!("Mood: {}", m))
+                    .unwrap_or_else(|| "Journal entry".to_string())
+            },
             updated_at: PrismaDateTime(r.try_get::<i64, _>("updatedAt").unwrap_or(0)),
-            module: "journal".to_string(), icon: "BookOpen".to_string(), color: "rose".to_string(),
+            module: "journal".to_string(),
+            icon: "BookOpen".to_string(),
+            color: "rose".to_string(),
         });
     }
 
@@ -102,9 +136,14 @@ pub async fn search(
             id: r.try_get("id").unwrap_or_default(),
             r#type: "Habit".to_string(),
             title: r.try_get("name").unwrap_or_default(),
-            description: desc.unwrap_or_else(|| icon.map(|i| format!("Icon: {}", i)).unwrap_or_else(|| "Habit".to_string())),
+            description: desc.unwrap_or_else(|| {
+                icon.map(|i| format!("Icon: {}", i))
+                    .unwrap_or_else(|| "Habit".to_string())
+            }),
             updated_at: PrismaDateTime(r.try_get::<i64, _>("updatedAt").unwrap_or(0)),
-            module: "habits".to_string(), icon: "Repeat".to_string(), color: "teal".to_string(),
+            module: "habits".to_string(),
+            icon: "Repeat".to_string(),
+            color: "teal".to_string(),
         });
     }
 
@@ -120,9 +159,12 @@ pub async fn search(
             id: r.try_get("id").unwrap_or_default(),
             r#type: "Goal".to_string(),
             title: r.try_get("title").unwrap_or_default(),
-            description: desc.unwrap_or_else(|| format!("Progress: {}% · Category: {}", progress, category)),
+            description: desc
+                .unwrap_or_else(|| format!("Progress: {}% · Category: {}", progress, category)),
             updated_at: PrismaDateTime(r.try_get::<i64, _>("updatedAt").unwrap_or(0)),
-            module: "goals".to_string(), icon: "Target".to_string(), color: "violet".to_string(),
+            module: "goals".to_string(),
+            icon: "Target".to_string(),
+            color: "violet".to_string(),
         });
     }
 
@@ -140,7 +182,9 @@ pub async fn search(
             title: r.try_get("title").unwrap_or_default(),
             description: desc.unwrap_or_else(|| format!("Starts: {}", start_dt.to_iso())),
             updated_at: PrismaDateTime(r.try_get::<i64, _>("updatedAt").unwrap_or(0)),
-            module: "calendar".to_string(), icon: "CalendarDays".to_string(), color: "sky".to_string(),
+            module: "calendar".to_string(),
+            icon: "CalendarDays".to_string(),
+            color: "sky".to_string(),
         });
     }
 
@@ -161,7 +205,9 @@ pub async fn search(
                 format!("Progress: {}%{}", progress, p)
             }),
             updated_at: PrismaDateTime(r.try_get::<i64, _>("updatedAt").unwrap_or(0)),
-            module: "learning".to_string(), icon: "GraduationCap".to_string(), color: "cyan".to_string(),
+            module: "learning".to_string(),
+            icon: "GraduationCap".to_string(),
+            color: "cyan".to_string(),
         });
     }
 

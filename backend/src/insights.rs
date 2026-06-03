@@ -11,14 +11,25 @@ fn insight_id() -> String {
 }
 
 fn calc_trend(current: f64, previous: f64) -> &'static str {
-    if previous == 0.0 { return if current > 0.0 { "up" } else { "stable" }; }
+    if previous == 0.0 {
+        return if current > 0.0 { "up" } else { "stable" };
+    }
     let change = (current - previous) / previous * 100.0;
-    if change > 5.0 { "up" } else if change < -5.0 { "down" } else { "stable" }
+    if change > 5.0 {
+        "up"
+    } else if change < -5.0 {
+        "down"
+    } else {
+        "stable"
+    }
 }
 
 pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json::Value>, AppError> {
     let now = now_ms();
-    let today_ms = { let s = now / 1000; (s - s % 86400) * 1000 };
+    let today_ms = {
+        let s = now / 1000;
+        (s - s % 86400) * 1000
+    };
     let today_end = today_ms + 86_400_000 - 1;
 
     // Week boundaries (Mon-based)
@@ -32,9 +43,19 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
     let (this_month_start, last_month_start, last_month_end) = {
         use chrono::{Datelike, TimeZone, Utc};
         let dt = Utc.timestamp_millis_opt(now).unwrap();
-        let tms = Utc.with_ymd_and_hms(dt.year(), dt.month(), 1, 0, 0, 0).unwrap().timestamp_millis();
-        let (lmy, lmm) = if dt.month() == 1 { (dt.year() - 1, 12u32) } else { (dt.year(), dt.month() - 1) };
-        let lms = Utc.with_ymd_and_hms(lmy, lmm, 1, 0, 0, 0).unwrap().timestamp_millis();
+        let tms = Utc
+            .with_ymd_and_hms(dt.year(), dt.month(), 1, 0, 0, 0)
+            .unwrap()
+            .timestamp_millis();
+        let (lmy, lmm) = if dt.month() == 1 {
+            (dt.year() - 1, 12u32)
+        } else {
+            (dt.year(), dt.month() - 1)
+        };
+        let lms = Utc
+            .with_ymd_and_hms(lmy, lmm, 1, 0, 0, 0)
+            .unwrap()
+            .timestamp_millis();
         let lme = tms - 1;
         (tms, lms, lme)
     };
@@ -43,27 +64,76 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
 
     // Tasks
     let all_tasks = sqlx::query(
-        "SELECT id, status, priority, completedAt, createdAt, dueDate FROM Task WHERE archived = 0"
-    ).fetch_all(&st.db).await?;
+        "SELECT id, status, priority, completedAt, createdAt, dueDate FROM Task WHERE archived = 0",
+    )
+    .fetch_all(&st.db)
+    .await?;
     let total_tasks = all_tasks.len() as f64;
-    let done_tasks = all_tasks.iter().filter(|r| r.try_get::<String, _>("status").map(|s| s == "done").unwrap_or(false)).count() as f64;
-    let task_completion_rate = if total_tasks > 0.0 { done_tasks / total_tasks * 100.0 } else { 0.0 };
+    let done_tasks = all_tasks
+        .iter()
+        .filter(|r| {
+            r.try_get::<String, _>("status")
+                .map(|s| s == "done")
+                .unwrap_or(false)
+        })
+        .count() as f64;
+    let task_completion_rate = if total_tasks > 0.0 {
+        done_tasks / total_tasks * 100.0
+    } else {
+        0.0
+    };
 
-    let tasks_this_week = all_tasks.iter().filter(|r| {
-        if r.try_get::<String, _>("status").map(|s| s != "done").unwrap_or(true) { return false; }
-        r.try_get::<Option<i64>, _>("completedAt").ok().flatten().map(|t| t >= this_week_start).unwrap_or(false)
-    }).count() as f64;
-    let tasks_last_week = all_tasks.iter().filter(|r| {
-        if r.try_get::<String, _>("status").map(|s| s != "done").unwrap_or(true) { return false; }
+    let tasks_this_week = all_tasks
+        .iter()
+        .filter(|r| {
+            if r.try_get::<String, _>("status")
+                .map(|s| s != "done")
+                .unwrap_or(true)
+            {
+                return false;
+            }
+            r.try_get::<Option<i64>, _>("completedAt")
+                .ok()
+                .flatten()
+                .map(|t| t >= this_week_start)
+                .unwrap_or(false)
+        })
+        .count() as f64;
+    let tasks_last_week = all_tasks
+        .iter()
+        .filter(|r| {
+            if r.try_get::<String, _>("status")
+                .map(|s| s != "done")
+                .unwrap_or(true)
+            {
+                return false;
+            }
 
-        r.try_get::<Option<i64>, _>("completedAt").ok().flatten().map(|t| t >= last_week_start && t <= last_week_end).unwrap_or(false)
-    }).count() as f64;
+            r.try_get::<Option<i64>, _>("completedAt")
+                .ok()
+                .flatten()
+                .map(|t| t >= last_week_start && t <= last_week_end)
+                .unwrap_or(false)
+        })
+        .count() as f64;
     let task_trend = calc_trend(tasks_this_week, tasks_last_week);
 
-    let overdue = all_tasks.iter().filter(|r| {
-        if r.try_get::<String, _>("status").map(|s| s == "done").unwrap_or(false) { return false; }
-        r.try_get::<Option<i64>, _>("dueDate").ok().flatten().map(|d| d < today_ms).unwrap_or(false)
-    }).count() as i64;
+    let overdue = all_tasks
+        .iter()
+        .filter(|r| {
+            if r.try_get::<String, _>("status")
+                .map(|s| s == "done")
+                .unwrap_or(false)
+            {
+                return false;
+            }
+            r.try_get::<Option<i64>, _>("dueDate")
+                .ok()
+                .flatten()
+                .map(|d| d < today_ms)
+                .unwrap_or(false)
+        })
+        .count() as i64;
 
     if overdue > 0 {
         insights.push(serde_json::json!({
@@ -75,7 +145,13 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
     }
 
     if tasks_last_week > 0.0 || tasks_this_week > 0.0 {
-        let change = if tasks_last_week > 0.0 { ((tasks_this_week - tasks_last_week) / tasks_last_week * 100.0) as i64 } else if tasks_this_week > 0.0 { 100 } else { 0 };
+        let change = if tasks_last_week > 0.0 {
+            ((tasks_this_week - tasks_last_week) / tasks_last_week * 100.0) as i64
+        } else if tasks_this_week > 0.0 {
+            100
+        } else {
+            0
+        };
         insights.push(serde_json::json!({
             "id": insight_id(), "category": "productivity",
             "title": "Weekly Task Progress",
@@ -90,24 +166,41 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
     }
 
     // Habits
-    let habits = sqlx::query("SELECT id, name, icon FROM Habit WHERE archived = 0").fetch_all(&st.db).await?;
+    let habits = sqlx::query("SELECT id, name, icon FROM Habit WHERE archived = 0")
+        .fetch_all(&st.db)
+        .await?;
     let total_habits = habits.len() as f64;
     let mut completed_today = 0f64;
     for h in &habits {
         let hid: String = h.try_get("id").unwrap_or_default();
-        let c: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM HabitLog WHERE habitId = ? AND date >= ? AND date <= ?")
-            .bind(&hid).bind(today_ms).bind(today_end).fetch_one(&st.db).await?;
-        if c > 0 { completed_today += 1.0; }
+        let c: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM HabitLog WHERE habitId = ? AND date >= ? AND date <= ?",
+        )
+        .bind(&hid)
+        .bind(today_ms)
+        .bind(today_end)
+        .fetch_one(&st.db)
+        .await?;
+        if c > 0 {
+            completed_today += 1.0;
+        }
     }
-    let habit_consistency = if total_habits > 0.0 { completed_today / total_habits * 100.0 } else { 0.0 };
+    let habit_consistency = if total_habits > 0.0 {
+        completed_today / total_habits * 100.0
+    } else {
+        0.0
+    };
 
     // Best habit streak
     let mut max_streak = 0i64;
     let mut max_streak_name = String::new();
     for h in &habits {
         let hid: String = h.try_get("id").unwrap_or_default();
-        let logs = sqlx::query("SELECT date FROM HabitLog WHERE habitId = ? ORDER BY date DESC LIMIT 100")
-            .bind(&hid).fetch_all(&st.db).await?;
+        let logs =
+            sqlx::query("SELECT date FROM HabitLog WHERE habitId = ? ORDER BY date DESC LIMIT 100")
+                .bind(&hid)
+                .fetch_all(&st.db)
+                .await?;
         let mut streak = 0i64;
         let mut check = today_ms;
         for _ in 0..60 {
@@ -116,7 +209,12 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
                 let d = l.try_get::<i64, _>("date").unwrap_or(-1);
                 d >= check && d <= day_end
             });
-            if has { streak += 1; check -= 86_400_000; } else { break; }
+            if has {
+                streak += 1;
+                check -= 86_400_000;
+            } else {
+                break;
+            }
         }
         if streak > max_streak {
             max_streak = streak;
@@ -158,23 +256,45 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
     ).fetch_all(&st.db).await?;
     if !active_goals.is_empty() {
         let total_g = active_goals.len() as f64;
-        let avg_progress: f64 = active_goals.iter().map(|r| r.try_get::<i64, _>("progress").unwrap_or(0) as f64).sum::<f64>() / total_g;
-        let goals_ahead = active_goals.iter().filter(|r| {
-            let (sd, td) = (r.try_get::<Option<i64>, _>("startDate").ok().flatten(), r.try_get::<Option<i64>, _>("targetDate").ok().flatten());
-            let prog = r.try_get::<i64, _>("progress").unwrap_or(0) as f64;
-            if let (Some(s), Some(t)) = (sd, td) {
-                let total_dur = (t - s) as f64; let elapsed = (now - s) as f64;
-                total_dur > 0.0 && elapsed / total_dur < 0.5 && prog > 50.0
-            } else { false }
-        }).count() as i64;
-        let goals_at_risk = active_goals.iter().filter(|r| {
-            let (sd, td) = (r.try_get::<Option<i64>, _>("startDate").ok().flatten(), r.try_get::<Option<i64>, _>("targetDate").ok().flatten());
-            let prog = r.try_get::<i64, _>("progress").unwrap_or(0) as f64;
-            if let (Some(s), Some(t)) = (sd, td) {
-                let total_dur = (t - s) as f64; let elapsed = (now - s) as f64;
-                total_dur > 0.0 && elapsed / total_dur > 0.5 && prog < 50.0
-            } else { false }
-        }).count() as i64;
+        let avg_progress: f64 = active_goals
+            .iter()
+            .map(|r| r.try_get::<i64, _>("progress").unwrap_or(0) as f64)
+            .sum::<f64>()
+            / total_g;
+        let goals_ahead = active_goals
+            .iter()
+            .filter(|r| {
+                let (sd, td) = (
+                    r.try_get::<Option<i64>, _>("startDate").ok().flatten(),
+                    r.try_get::<Option<i64>, _>("targetDate").ok().flatten(),
+                );
+                let prog = r.try_get::<i64, _>("progress").unwrap_or(0) as f64;
+                if let (Some(s), Some(t)) = (sd, td) {
+                    let total_dur = (t - s) as f64;
+                    let elapsed = (now - s) as f64;
+                    total_dur > 0.0 && elapsed / total_dur < 0.5 && prog > 50.0
+                } else {
+                    false
+                }
+            })
+            .count() as i64;
+        let goals_at_risk = active_goals
+            .iter()
+            .filter(|r| {
+                let (sd, td) = (
+                    r.try_get::<Option<i64>, _>("startDate").ok().flatten(),
+                    r.try_get::<Option<i64>, _>("targetDate").ok().flatten(),
+                );
+                let prog = r.try_get::<i64, _>("progress").unwrap_or(0) as f64;
+                if let (Some(s), Some(t)) = (sd, td) {
+                    let total_dur = (t - s) as f64;
+                    let elapsed = (now - s) as f64;
+                    total_dur > 0.0 && elapsed / total_dur > 0.5 && prog < 50.0
+                } else {
+                    false
+                }
+            })
+            .count() as i64;
 
         insights.push(serde_json::json!({
             "id": insight_id(), "category": "goals",
@@ -203,10 +323,18 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
     if this_month_expenses > 0.0 || last_month_expenses > 0.0 {
         let change = if last_month_expenses > 0.0 {
             ((this_month_expenses - last_month_expenses) / last_month_expenses * 100.0) as i64
-        } else { if this_month_expenses > 0.0 { 100 } else { 0 } };
+        } else {
+            if this_month_expenses > 0.0 {
+                100
+            } else {
+                0
+            }
+        };
         let savings_rate = if this_month_income > 0.0 {
             ((this_month_income - this_month_expenses) / this_month_income * 100.0) as i64
-        } else { 0 };
+        } else {
+            0
+        };
         insights.push(serde_json::json!({
             "id": insight_id(), "category": "finance",
             "title": "Spending Pattern Analysis",
@@ -223,11 +351,17 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
 
     // Mood (journal)
     let journal_scores = sqlx::query_scalar::<_, i64>(
-        "SELECT moodScore FROM JournalEntry WHERE moodScore IS NOT NULL AND date >= ? LIMIT 14"
-    ).bind(now - 14 * 86_400_000).fetch_all(&st.db).await.unwrap_or_default();
+        "SELECT moodScore FROM JournalEntry WHERE moodScore IS NOT NULL AND date >= ? LIMIT 14",
+    )
+    .bind(now - 14 * 86_400_000)
+    .fetch_all(&st.db)
+    .await
+    .unwrap_or_default();
     let avg_mood = if !journal_scores.is_empty() {
         journal_scores.iter().sum::<i64>() as f64 / journal_scores.len() as f64
-    } else { 0.0 };
+    } else {
+        0.0
+    };
     if journal_scores.len() >= 3 {
         insights.push(serde_json::json!({
             "id": insight_id(), "category": "wellness",
@@ -244,14 +378,31 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
     }
 
     // Scores
-    let productivity_score = (task_completion_rate * 0.4 + habit_consistency * 0.3 +
-        if !active_goals.is_empty() { active_goals.iter().map(|r| r.try_get::<i64, _>("progress").unwrap_or(0) as f64).sum::<f64>() / active_goals.len() as f64 * 0.3 } else { 0.0 }).min(100.0) as i64;
+    let productivity_score = (task_completion_rate * 0.4
+        + habit_consistency * 0.3
+        + if !active_goals.is_empty() {
+            active_goals
+                .iter()
+                .map(|r| r.try_get::<i64, _>("progress").unwrap_or(0) as f64)
+                .sum::<f64>()
+                / active_goals.len() as f64
+                * 0.3
+        } else {
+            0.0
+        })
+    .min(100.0) as i64;
     let mood_score = (avg_mood / 5.0 * 100.0).min(100.0);
     let wellness_score = (mood_score * 0.5 + habit_consistency * 0.3 + 0.0).min(100.0) as i64;
 
     let task_trend_val = calc_trend(tasks_this_week, tasks_last_week);
     let productivity_trend = task_trend_val;
-    let wellness_trend = if avg_mood >= 3.5 { "up" } else if avg_mood >= 2.5 { "stable" } else { "down" };
+    let wellness_trend = if avg_mood >= 3.5 {
+        "up"
+    } else if avg_mood >= 2.5 {
+        "stable"
+    } else {
+        "down"
+    };
 
     // Ensure at least 4 insights
     if total_tasks == 0.0 {
@@ -271,13 +422,20 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
     let categories = ["productivity", "wellness", "finance", "goals"];
     let mut selected: Vec<serde_json::Value> = Vec::new();
     for cat in &categories {
-        if let Some(i) = insights.iter().find(|i| i["category"].as_str() == Some(cat)) {
+        if let Some(i) = insights
+            .iter()
+            .find(|i| i["category"].as_str() == Some(cat))
+        {
             selected.push(i.clone());
         }
     }
     for i in &insights {
-        if selected.len() >= 6 { break; }
-        if !selected.iter().any(|s| s["id"] == i["id"]) { selected.push(i.clone()); }
+        if selected.len() >= 6 {
+            break;
+        }
+        if !selected.iter().any(|s| s["id"] == i["id"]) {
+            selected.push(i.clone());
+        }
     }
     let selected: Vec<serde_json::Value> = selected.into_iter().take(6).collect();
 
@@ -291,17 +449,23 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
     })))
 }
 
-pub async fn get_ai_insights(State(st): State<AppState>) -> Result<Json<serde_json::Value>, AppError> {
+pub async fn get_ai_insights(
+    State(st): State<AppState>,
+) -> Result<Json<serde_json::Value>, AppError> {
     let now = now_ms();
     let hour = (now / 3_600_000) % 24;
 
     let task_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM Task WHERE archived = 0")
-        .fetch_one(&st.db).await?;
-    let completed: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM Task WHERE status = 'done' AND archived = 0")
-        .fetch_one(&st.db).await?;
+        .fetch_one(&st.db)
+        .await?;
+    let completed: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM Task WHERE status = 'done' AND archived = 0")
+            .fetch_one(&st.db)
+            .await?;
     let pending = task_count - completed;
     let habit_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM Habit WHERE archived = 0")
-        .fetch_one(&st.db).await?;
+        .fetch_one(&st.db)
+        .await?;
 
     let mut insights = Vec::<serde_json::Value>::new();
 

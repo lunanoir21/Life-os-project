@@ -145,7 +145,9 @@ fn note_from_row(r: &sqlx::sqlite::SqliteRow) -> Result<Note, sqlx::Error> {
 
 async fn fetch_folder(db: &SqlitePool, id: &str) -> Result<Option<FolderMini>, sqlx::Error> {
     let row = sqlx::query("SELECT id,name,icon,color FROM NoteFolder WHERE id = ?")
-        .bind(id).fetch_optional(db).await?;
+        .bind(id)
+        .fetch_optional(db)
+        .await?;
     Ok(row.map(|r| FolderMini {
         id: r.try_get("id").unwrap_or_default(),
         name: r.try_get("name").unwrap_or_default(),
@@ -161,19 +163,25 @@ async fn fetch_note_tags(db: &SqlitePool, note_id: &str) -> Result<Vec<NoteTagFu
          t.createdAt AS t_createdAt, t.updatedAt AS t_updatedAt \
          FROM NoteTag nt JOIN Tag t ON t.id = nt.tagId WHERE nt.noteId = ?",
     )
-    .bind(note_id).fetch_all(db).await?;
-    rows.iter().map(|r| Ok(NoteTagFull {
-        id: r.try_get("nt_id")?,
-        note_id: r.try_get("nt_noteId")?,
-        tag_id: r.try_get("nt_tagId")?,
-        tag: TagMini {
-            id: r.try_get("t_id")?,
-            name: r.try_get("t_name")?,
-            color: r.try_get("t_color")?,
-            created_at: PrismaDateTime(r.try_get::<i64, _>("t_createdAt")?),
-            updated_at: PrismaDateTime(r.try_get::<i64, _>("t_updatedAt")?),
-        },
-    })).collect()
+    .bind(note_id)
+    .fetch_all(db)
+    .await?;
+    rows.iter()
+        .map(|r| {
+            Ok(NoteTagFull {
+                id: r.try_get("nt_id")?,
+                note_id: r.try_get("nt_noteId")?,
+                tag_id: r.try_get("nt_tagId")?,
+                tag: TagMini {
+                    id: r.try_get("t_id")?,
+                    name: r.try_get("t_name")?,
+                    color: r.try_get("t_color")?,
+                    created_at: PrismaDateTime(r.try_get::<i64, _>("t_createdAt")?),
+                    updated_at: PrismaDateTime(r.try_get::<i64, _>("t_updatedAt")?),
+                },
+            })
+        })
+        .collect()
 }
 
 fn count_words(s: &str) -> i64 {
@@ -197,8 +205,11 @@ pub async fn list_notes(
     }
     if let Some(q) = params.get("search") {
         let pat = format!("%{}%", q);
-        qb.push(" AND (title LIKE ").push_bind(pat.clone())
-          .push(" OR content LIKE ").push_bind(pat).push(")");
+        qb.push(" AND (title LIKE ")
+            .push_bind(pat.clone())
+            .push(" OR content LIKE ")
+            .push_bind(pat)
+            .push(")");
     }
     qb.push(" ORDER BY isPinned DESC, updatedAt DESC");
 
@@ -211,10 +222,17 @@ pub async fn list_notes(
             None => None,
         };
         let tags = fetch_note_tags(&st.db, &note.id).await?;
-        let backlinks: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM NoteLink WHERE targetNoteId = ?",
-        ).bind(&note.id).fetch_one(&st.db).await?;
-        out.push(NoteList { note, folder, tags, count: NoteBacklinksCount { backlinks } });
+        let backlinks: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM NoteLink WHERE targetNoteId = ?")
+                .bind(&note.id)
+                .fetch_one(&st.db)
+                .await?;
+        out.push(NoteList {
+            note,
+            folder,
+            tags,
+            count: NoteBacklinksCount { backlinks },
+        });
     }
     Ok(Json(out))
 }
@@ -224,10 +242,17 @@ pub async fn create_note(
     Json(body): Json<Value>,
 ) -> Result<(StatusCode, Json<NoteDetail>), AppError> {
     let title = body
-        .get("title").and_then(|v| v.as_str()).map(str::trim).filter(|s| !s.is_empty())
+        .get("title")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
         .ok_or_else(|| AppError::BadRequest("Title is required".to_string()))?
         .to_string();
-    let content = body.get("content").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let content = body
+        .get("content")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
     let word_count = count_words(&content);
     let id = gen_id();
     let now = now_ms();
@@ -247,13 +272,17 @@ pub async fn create_note(
     .bind(now).bind(now)
     .execute(&st.db).await?;
 
-    let detail = get_note_detail(&st.db, &id).await?
+    let detail = get_note_detail(&st.db, &id)
+        .await?
         .ok_or_else(|| AppError::Internal("note vanished".to_string()))?;
     Ok((StatusCode::CREATED, Json(detail)))
 }
 
 async fn get_note_detail(db: &SqlitePool, id: &str) -> Result<Option<NoteDetail>, sqlx::Error> {
-    let row = sqlx::query("SELECT * FROM Note WHERE id = ?").bind(id).fetch_optional(db).await?;
+    let row = sqlx::query("SELECT * FROM Note WHERE id = ?")
+        .bind(id)
+        .fetch_optional(db)
+        .await?;
     match row {
         None => Ok(None),
         Some(r) => {
@@ -266,34 +295,71 @@ async fn get_note_detail(db: &SqlitePool, id: &str) -> Result<Option<NoteDetail>
             let link_rows = sqlx::query(
                 "SELECT nl.id, nl.sourceNoteId, nl.targetNoteId, n.id AS tid, n.title AS ttitle \
                  FROM NoteLink nl JOIN Note n ON n.id = nl.targetNoteId WHERE nl.sourceNoteId = ?",
-            ).bind(id).fetch_all(db).await?;
-            let links = link_rows.iter().map(|r| Ok(NoteLinkOut {
-                id: r.try_get("id")?,
-                source_note_id: r.try_get("sourceNoteId")?,
-                target_note_id: r.try_get("targetNoteId")?,
-                target: NoteMini { id: r.try_get("tid")?, title: r.try_get("ttitle")? },
-            })).collect::<Result<Vec<_>, sqlx::Error>>()?;
+            )
+            .bind(id)
+            .fetch_all(db)
+            .await?;
+            let links = link_rows
+                .iter()
+                .map(|r| {
+                    Ok(NoteLinkOut {
+                        id: r.try_get("id")?,
+                        source_note_id: r.try_get("sourceNoteId")?,
+                        target_note_id: r.try_get("targetNoteId")?,
+                        target: NoteMini {
+                            id: r.try_get("tid")?,
+                            title: r.try_get("ttitle")?,
+                        },
+                    })
+                })
+                .collect::<Result<Vec<_>, sqlx::Error>>()?;
             let bl_rows = sqlx::query(
                 "SELECT nl.id, nl.sourceNoteId, nl.targetNoteId, n.id AS sid, n.title AS stitle \
                  FROM NoteLink nl JOIN Note n ON n.id = nl.sourceNoteId WHERE nl.targetNoteId = ?",
-            ).bind(id).fetch_all(db).await?;
-            let backlinks = bl_rows.iter().map(|r| Ok(NoteBacklinkOut {
-                id: r.try_get("id")?,
-                source_note_id: r.try_get("sourceNoteId")?,
-                target_note_id: r.try_get("targetNoteId")?,
-                source: NoteMini { id: r.try_get("sid")?, title: r.try_get("stitle")? },
-            })).collect::<Result<Vec<_>, sqlx::Error>>()?;
-            let bm_rows = sqlx::query("SELECT * FROM Bookmark WHERE noteId = ?").bind(id).fetch_all(db).await?;
-            let bookmarks = bm_rows.iter().map(|r| Ok(BookmarkOut {
-                id: r.try_get("id")?,
-                url: r.try_get("url")?,
-                title: r.try_get("title")?,
-                description: r.try_get("description")?,
-                favicon: r.try_get("favicon")?,
-                note_id: r.try_get("noteId")?,
-                created_at: PrismaDateTime(r.try_get::<i64, _>("createdAt")?),
-            })).collect::<Result<Vec<_>, sqlx::Error>>()?;
-            Ok(Some(NoteDetail { note, folder, tags, links, backlinks, bookmarks }))
+            )
+            .bind(id)
+            .fetch_all(db)
+            .await?;
+            let backlinks = bl_rows
+                .iter()
+                .map(|r| {
+                    Ok(NoteBacklinkOut {
+                        id: r.try_get("id")?,
+                        source_note_id: r.try_get("sourceNoteId")?,
+                        target_note_id: r.try_get("targetNoteId")?,
+                        source: NoteMini {
+                            id: r.try_get("sid")?,
+                            title: r.try_get("stitle")?,
+                        },
+                    })
+                })
+                .collect::<Result<Vec<_>, sqlx::Error>>()?;
+            let bm_rows = sqlx::query("SELECT * FROM Bookmark WHERE noteId = ?")
+                .bind(id)
+                .fetch_all(db)
+                .await?;
+            let bookmarks = bm_rows
+                .iter()
+                .map(|r| {
+                    Ok(BookmarkOut {
+                        id: r.try_get("id")?,
+                        url: r.try_get("url")?,
+                        title: r.try_get("title")?,
+                        description: r.try_get("description")?,
+                        favicon: r.try_get("favicon")?,
+                        note_id: r.try_get("noteId")?,
+                        created_at: PrismaDateTime(r.try_get::<i64, _>("createdAt")?),
+                    })
+                })
+                .collect::<Result<Vec<_>, sqlx::Error>>()?;
+            Ok(Some(NoteDetail {
+                note,
+                folder,
+                tags,
+                links,
+                backlinks,
+                bookmarks,
+            }))
         }
     }
 }
@@ -302,7 +368,8 @@ pub async fn get_note(
     State(st): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<NoteDetail>, AppError> {
-    get_note_detail(&st.db, &id).await?
+    get_note_detail(&st.db, &id)
+        .await?
         .ok_or_else(|| AppError::NotFound("Note not found".to_string()))
         .map(Json)
 }
@@ -313,7 +380,9 @@ pub async fn update_note(
     Json(body): Json<Value>,
 ) -> Result<Json<NoteDetail>, AppError> {
     let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM Note WHERE id = ?")
-        .bind(&id).fetch_one(&st.db).await?;
+        .bind(&id)
+        .fetch_one(&st.db)
+        .await?;
     if exists == 0 {
         return Err(AppError::NotFound("Note not found".to_string()));
     }
@@ -333,15 +402,21 @@ pub async fn update_note(
     if let Some(v) = body.get("type").and_then(|v| v.as_str()) {
         crate::push_set!(qb, first, "type = ", v.to_string());
     }
-    if let Some(v) = patch_str(&body, "icon") { crate::push_set!(qb, first, "icon = ", v); }
-    if let Some(v) = patch_str(&body, "color") { crate::push_set!(qb, first, "color = ", v); }
+    if let Some(v) = patch_str(&body, "icon") {
+        crate::push_set!(qb, first, "icon = ", v);
+    }
+    if let Some(v) = patch_str(&body, "color") {
+        crate::push_set!(qb, first, "color = ", v);
+    }
     if let Some(v) = patch_bool(&body, "isPinned") {
         crate::push_set!(qb, first, "isPinned = ", if v { 1_i64 } else { 0_i64 });
     }
     if let Some(v) = patch_bool(&body, "isFavorite") {
         crate::push_set!(qb, first, "isFavorite = ", if v { 1_i64 } else { 0_i64 });
     }
-    if let Some(v) = patch_str(&body, "folderId") { crate::push_set!(qb, first, "folderId = ", v); }
+    if let Some(v) = patch_str(&body, "folderId") {
+        crate::push_set!(qb, first, "folderId = ", v);
+    }
     if let Some(v) = patch_bool(&body, "archived") {
         crate::push_set!(qb, first, "archived = ", if v { 1_i64 } else { 0_i64 });
     }
@@ -349,7 +424,8 @@ pub async fn update_note(
     qb.push(" WHERE id = ").push_bind(&id);
     qb.build().execute(&st.db).await?;
 
-    get_note_detail(&st.db, &id).await?
+    get_note_detail(&st.db, &id)
+        .await?
         .ok_or_else(|| AppError::Internal("note vanished".to_string()))
         .map(Json)
 }
@@ -359,10 +435,15 @@ pub async fn delete_note(
     Path(id): Path<String>,
 ) -> Result<Json<Value>, AppError> {
     let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM Note WHERE id = ?")
-        .bind(&id).fetch_one(&st.db).await?;
+        .bind(&id)
+        .fetch_one(&st.db)
+        .await?;
     if exists == 0 {
         return Err(AppError::NotFound("Note not found".to_string()));
     }
-    sqlx::query("DELETE FROM Note WHERE id = ?").bind(&id).execute(&st.db).await?;
+    sqlx::query("DELETE FROM Note WHERE id = ?")
+        .bind(&id)
+        .execute(&st.db)
+        .await?;
     Ok(Json(serde_json::json!({ "success": true })))
 }

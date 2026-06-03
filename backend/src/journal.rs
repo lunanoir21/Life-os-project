@@ -15,7 +15,11 @@ use crate::AppState;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct TagMini { id: String, name: String, color: String }
+pub(crate) struct TagMini {
+    id: String,
+    name: String,
+    color: String,
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -76,27 +80,48 @@ fn entry_from_row(r: &sqlx::sqlite::SqliteRow) -> Result<JournalEntry, sqlx::Err
     })
 }
 
-async fn fetch_entry_tags(db: &SqlitePool, entry_id: &str) -> Result<Vec<JournalTagFull>, sqlx::Error> {
+async fn fetch_entry_tags(
+    db: &SqlitePool,
+    entry_id: &str,
+) -> Result<Vec<JournalTagFull>, sqlx::Error> {
     let rows = sqlx::query(
         "SELECT jt.id, jt.entryId, jt.tagId, t.id AS tid, t.name AS tname, t.color AS tcolor \
          FROM JournalTag jt JOIN Tag t ON t.id = jt.tagId WHERE jt.entryId = ?",
-    ).bind(entry_id).fetch_all(db).await?;
-    rows.iter().map(|r| Ok(JournalTagFull {
-        id: r.try_get("id")?,
-        entry_id: r.try_get("entryId")?,
-        tag_id: r.try_get("tagId")?,
-        tag: TagMini { id: r.try_get("tid")?, name: r.try_get("tname")?, color: r.try_get("tcolor")? },
-    })).collect()
+    )
+    .bind(entry_id)
+    .fetch_all(db)
+    .await?;
+    rows.iter()
+        .map(|r| {
+            Ok(JournalTagFull {
+                id: r.try_get("id")?,
+                entry_id: r.try_get("entryId")?,
+                tag_id: r.try_get("tagId")?,
+                tag: TagMini {
+                    id: r.try_get("tid")?,
+                    name: r.try_get("tname")?,
+                    color: r.try_get("tcolor")?,
+                },
+            })
+        })
+        .collect()
 }
 
 pub async fn list_journal(
     State(st): State<AppState>,
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<Json<JournalList>, AppError> {
-    let limit = params.get("limit").and_then(|v| v.parse::<i64>().ok()).unwrap_or(50);
-    let offset = params.get("offset").and_then(|v| v.parse::<i64>().ok()).unwrap_or(0);
+    let limit = params
+        .get("limit")
+        .and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or(50);
+    let offset = params
+        .get("offset")
+        .and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or(0);
 
-    let mut count_qb: QueryBuilder<Sqlite> = QueryBuilder::new("SELECT COUNT(*) FROM JournalEntry WHERE 1=1");
+    let mut count_qb: QueryBuilder<Sqlite> =
+        QueryBuilder::new("SELECT COUNT(*) FROM JournalEntry WHERE 1=1");
     let mut qb: QueryBuilder<Sqlite> = QueryBuilder::new("SELECT * FROM JournalEntry WHERE 1=1");
     if let Some(m) = params.get("mood") {
         qb.push(" AND mood = ").push_bind(m.clone());
@@ -108,7 +133,10 @@ pub async fn list_journal(
         count_qb.push(" AND isFavorite = ").push_bind(b);
     }
     let total: i64 = count_qb.build_query_scalar().fetch_one(&st.db).await?;
-    qb.push(" ORDER BY date DESC LIMIT ").push_bind(limit).push(" OFFSET ").push_bind(offset);
+    qb.push(" ORDER BY date DESC LIMIT ")
+        .push_bind(limit)
+        .push(" OFFSET ")
+        .push_bind(offset);
     let rows = qb.build().fetch_all(&st.db).await?;
 
     let mut entries = Vec::with_capacity(rows.len());
@@ -145,10 +173,16 @@ pub async fn create_journal(
     .bind(date).bind(now).bind(now)
     .execute(&st.db).await?;
 
-    let r = sqlx::query("SELECT * FROM JournalEntry WHERE id = ?").bind(&id).fetch_one(&st.db).await?;
+    let r = sqlx::query("SELECT * FROM JournalEntry WHERE id = ?")
+        .bind(&id)
+        .fetch_one(&st.db)
+        .await?;
     let entry = entry_from_row(&r)?;
     let entry_tags = fetch_entry_tags(&st.db, &id).await?;
-    Ok((StatusCode::CREATED, Json(JournalEntryFull { entry, entry_tags })))
+    Ok((
+        StatusCode::CREATED,
+        Json(JournalEntryFull { entry, entry_tags }),
+    ))
 }
 
 pub async fn get_journal(
@@ -156,7 +190,9 @@ pub async fn get_journal(
     Path(id): Path<String>,
 ) -> Result<Json<JournalEntryFull>, AppError> {
     let r = sqlx::query("SELECT * FROM JournalEntry WHERE id = ?")
-        .bind(&id).fetch_optional(&st.db).await?
+        .bind(&id)
+        .fetch_optional(&st.db)
+        .await?
         .ok_or_else(|| AppError::NotFound("Journal entry not found".to_string()))?;
     let entry = entry_from_row(&r)?;
     let entry_tags = fetch_entry_tags(&st.db, &id).await?;
@@ -169,26 +205,53 @@ pub async fn update_journal(
     Json(body): Json<Value>,
 ) -> Result<Json<JournalEntryFull>, AppError> {
     let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM JournalEntry WHERE id = ?")
-        .bind(&id).fetch_one(&st.db).await?;
-    if exists == 0 { return Err(AppError::NotFound("Journal entry not found".to_string())); }
+        .bind(&id)
+        .fetch_one(&st.db)
+        .await?;
+    if exists == 0 {
+        return Err(AppError::NotFound("Journal entry not found".to_string()));
+    }
     let now = now_ms();
     let mut qb: QueryBuilder<Sqlite> = QueryBuilder::new("UPDATE JournalEntry SET ");
     let mut first = true;
-    if let Some(v) = patch_str(&body, "title") { crate::push_set!(qb, first, "title = ", v); }
-    if let Some(v) = body.get("content").and_then(|v| v.as_str()) { crate::push_set!(qb, first, "content = ", v.to_string()); }
-    if let Some(v) = patch_str(&body, "mood") { crate::push_set!(qb, first, "mood = ", v); }
-    if let Some(v) = patch_i64(&body, "moodScore") { crate::push_set!(qb, first, "moodScore = ", v); }
-    if let Some(v) = patch_i64(&body, "energy") { crate::push_set!(qb, first, "energy = ", v); }
-    if let Some(v) = patch_i64(&body, "stress") { crate::push_set!(qb, first, "stress = ", v); }
-    if let Some(v) = patch_str(&body, "gratitude") { crate::push_set!(qb, first, "gratitude = ", v); }
-    if let Some(v) = patch_str(&body, "tags") { crate::push_set!(qb, first, "tags = ", v); }
-    if let Some(v) = patch_bool(&body, "isFavorite") { crate::push_set!(qb, first, "isFavorite = ", if v {1_i64} else {0_i64}); }
-    if let Some(v) = patch_ms(&body, "date") { crate::push_set!(qb, first, "date = ", v); }
+    if let Some(v) = patch_str(&body, "title") {
+        crate::push_set!(qb, first, "title = ", v);
+    }
+    if let Some(v) = body.get("content").and_then(|v| v.as_str()) {
+        crate::push_set!(qb, first, "content = ", v.to_string());
+    }
+    if let Some(v) = patch_str(&body, "mood") {
+        crate::push_set!(qb, first, "mood = ", v);
+    }
+    if let Some(v) = patch_i64(&body, "moodScore") {
+        crate::push_set!(qb, first, "moodScore = ", v);
+    }
+    if let Some(v) = patch_i64(&body, "energy") {
+        crate::push_set!(qb, first, "energy = ", v);
+    }
+    if let Some(v) = patch_i64(&body, "stress") {
+        crate::push_set!(qb, first, "stress = ", v);
+    }
+    if let Some(v) = patch_str(&body, "gratitude") {
+        crate::push_set!(qb, first, "gratitude = ", v);
+    }
+    if let Some(v) = patch_str(&body, "tags") {
+        crate::push_set!(qb, first, "tags = ", v);
+    }
+    if let Some(v) = patch_bool(&body, "isFavorite") {
+        crate::push_set!(qb, first, "isFavorite = ", if v { 1_i64 } else { 0_i64 });
+    }
+    if let Some(v) = patch_ms(&body, "date") {
+        crate::push_set!(qb, first, "date = ", v);
+    }
     crate::push_set!(qb, first, "updatedAt = ", now);
     qb.push(" WHERE id = ").push_bind(&id);
     qb.build().execute(&st.db).await?;
 
-    let r = sqlx::query("SELECT * FROM JournalEntry WHERE id = ?").bind(&id).fetch_one(&st.db).await?;
+    let r = sqlx::query("SELECT * FROM JournalEntry WHERE id = ?")
+        .bind(&id)
+        .fetch_one(&st.db)
+        .await?;
     let entry = entry_from_row(&r)?;
     let entry_tags = fetch_entry_tags(&st.db, &id).await?;
     Ok(Json(JournalEntryFull { entry, entry_tags }))
@@ -199,8 +262,15 @@ pub async fn delete_journal(
     Path(id): Path<String>,
 ) -> Result<Json<Value>, AppError> {
     let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM JournalEntry WHERE id = ?")
-        .bind(&id).fetch_one(&st.db).await?;
-    if exists == 0 { return Err(AppError::NotFound("Journal entry not found".to_string())); }
-    sqlx::query("DELETE FROM JournalEntry WHERE id = ?").bind(&id).execute(&st.db).await?;
+        .bind(&id)
+        .fetch_one(&st.db)
+        .await?;
+    if exists == 0 {
+        return Err(AppError::NotFound("Journal entry not found".to_string()));
+    }
+    sqlx::query("DELETE FROM JournalEntry WHERE id = ?")
+        .bind(&id)
+        .execute(&st.db)
+        .await?;
     Ok(Json(serde_json::json!({ "success": true })))
 }

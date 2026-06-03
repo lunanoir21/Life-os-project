@@ -154,19 +154,17 @@ pub async fn create_profile(
 
     // Create default Settings row
     let settings_id = gen_id();
-    sqlx::query(
-        "INSERT INTO Settings (id, userId, createdAt, updatedAt) VALUES (?, ?, ?, ?)",
-    )
-    .bind(&settings_id)
-    .bind(&id)
-    .bind(now)
-    .bind(now)
-    .execute(&st.db)
-    .await?;
+    sqlx::query("INSERT INTO Settings (id, userId, createdAt, updatedAt) VALUES (?, ?, ?, ?)")
+        .bind(&settings_id)
+        .bind(&id)
+        .bind(now)
+        .bind(now)
+        .execute(&st.db)
+        .await?;
 
-    let p = profile_row(&st.db).await?.ok_or_else(|| {
-        AppError::Internal("profile vanished after create".to_string())
-    })?;
+    let p = profile_row(&st.db)
+        .await?
+        .ok_or_else(|| AppError::Internal("profile vanished after create".to_string()))?;
     Ok((StatusCode::CREATED, Json(p)))
 }
 
@@ -238,7 +236,12 @@ pub async fn update_profile(
             crate::push_set!(sq, sf, "currency = ", v.to_string());
         }
         if let Some(v) = patch_bool(s, "notificationsEnabled") {
-            crate::push_set!(sq, sf, "notificationsEnabled = ", if v { 1_i64 } else { 0_i64 });
+            crate::push_set!(
+                sq,
+                sf,
+                "notificationsEnabled = ",
+                if v { 1_i64 } else { 0_i64 }
+            );
         }
         if let Some(v) = patch_bool(s, "backupEnabled") {
             crate::push_set!(sq, sf, "backupEnabled = ", if v { 1_i64 } else { 0_i64 });

@@ -14,7 +14,10 @@ pub fn gen_id() -> String {
 }
 
 fn uuid_fallback() -> String {
-    format!("c{:x}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0))
+    format!(
+        "c{:x}",
+        chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+    )
 }
 
 // ---------------------------------------------------------------------------
