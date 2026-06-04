@@ -68,7 +68,7 @@ export function AppShell() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <div className="flex flex-1 h-screen overflow-hidden">
-        {/* Sidebar hidden on mobile, shown on desktop (unless focus mode) */}
+        {/* Desktop sidebar — hidden on mobile */}
         {!focusMode && !isMobile && <Sidebar />}
 
         <div className="flex flex-col flex-1 min-w-0">
@@ -90,10 +90,10 @@ export function AppShell() {
             {focusMode && <FocusModeOverlay />}
           </main>
         </div>
-
-        {/* Mobile sidebar overlay */}
-        {!focusMode && isMobile && <Sidebar />}
       </div>
+
+      {/* Mobile sidebar Sheet — rendered outside the layout flow */}
+      {!focusMode && isMobile && <Sidebar />}
 
       <CommandPalette />
       <GlobalSearchPanel />

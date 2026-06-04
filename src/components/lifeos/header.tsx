@@ -1,6 +1,5 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { useAppStore, type ModuleId } from '@/stores/app-store'
 import {
   Search,
@@ -40,12 +39,14 @@ import {
 import { useIsMobile } from '@/hooks/use-mobile'
 import { NotificationCenter } from '@/components/lifeos/notification-center'
 import { useTranslation } from '@/lib/i18n'
+import { useProfile } from '@/lib/api/hooks'
 
 export function Header() {
   const { activeModule, setCommandPaletteOpen, setMobileSidebarOpen, setGlobalSearchOpen, setActiveModule, toggleFocusMode } = useAppStore()
   const { theme, setTheme } = useTheme()
   const isMobile = useIsMobile()
   const { t } = useTranslation()
+  const { data: profile } = useProfile()
 
   const moduleLabels: Record<ModuleId, string> = {
     dashboard: t('nav.dashboard'),
@@ -75,20 +76,11 @@ export function Header() {
     settings: t('groups.settings'),
   }
 
-  const [userName, setUserName] = useState('')
-  const [userEmail, setUserEmail] = useState('')
-  useEffect(() => {
-    fetch('/api/profile')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.name) setUserName(data.name)
-        if (data?.email) setUserEmail(data.email)
-      })
-      .catch(() => {})
-  }, [])
+  const userName = profile?.name || ''
+  const userEmail = profile?.email || ''
 
   const initials = userName
-    ? userName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+    ? userName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
     : 'U'
 
   const displayName = userName || 'User'

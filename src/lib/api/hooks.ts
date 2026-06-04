@@ -592,3 +592,22 @@ export function useDeleteEvent() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['events'] }),
   })
 }
+
+// ============================================
+// Profile
+// ============================================
+export function useProfile() {
+  return useQuery({
+    queryKey: ['profile'],
+    queryFn: () => apiGet<{ name?: string; email?: string; avatar?: string }>('/api/profile'),
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useUpdateProfile() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => apiPatch('/api/profile', data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['profile'] }),
+  })
+}
