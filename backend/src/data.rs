@@ -129,7 +129,9 @@ pub async fn import_data(
 ) -> Result<Json<Value>, AppError> {
     let version = body.get("version");
     if version.is_none() {
-        return Err(AppError::BadRequest("Invalid import format: missing 'version'".to_string()));
+        return Err(AppError::BadRequest(
+            "Invalid import format: missing 'version'".to_string(),
+        ));
     }
     let data = body
         .get("data")
