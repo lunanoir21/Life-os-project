@@ -16,8 +16,8 @@ pub async fn get_weekly_review(
     };
     let week_end = today_ms + 86_400_000 - 1;
     let week_start = today_ms - 6 * 86_400_000;
-    let prev_week_start = week_start - 7 * 86_400_000;
-    let prev_week_end = week_start - 1;
+    let _prev_week_start = week_start - 7 * 86_400_000;
+    let _prev_week_end = week_start - 1;
 
     // Tasks
     let tasks_completed = sqlx::query(

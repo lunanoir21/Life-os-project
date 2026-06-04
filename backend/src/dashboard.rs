@@ -136,6 +136,7 @@ pub(crate) struct ProjectMini {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub(crate) struct DashboardResponse {
     tasks: TaskStatus,
     habits: HabitsInfo,

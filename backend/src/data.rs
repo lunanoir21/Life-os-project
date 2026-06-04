@@ -9,12 +9,6 @@ use crate::utils::{gen_id, now_ms};
 use crate::AppState;
 
 pub async fn export_data(State(st): State<AppState>) -> Result<Json<Value>, AppError> {
-    macro_rules! fetch {
-        ($q:expr) => {
-            sqlx::query($q).fetch_all(&st.db).await?
-        };
-    }
-
     let rows_to_json = |rows: Vec<sqlx::sqlite::SqliteRow>| -> Vec<Value> {
         rows.iter().map(|_| serde_json::json!(null)).collect() // placeholder
     };
@@ -84,7 +78,7 @@ pub async fn export_data(State(st): State<AppState>) -> Result<Json<Value>, AppE
                     let name = col.name();
                     // Try each type in order; fall back to null
                     let val: Value = if let Ok(v) = r.try_get::<Option<String>, _>(name) {
-                        v.map(|s| Value::String(s)).unwrap_or(Value::Null)
+                        v.map(Value::String).unwrap_or(Value::Null)
                     } else if let Ok(v) = r.try_get::<Option<i64>, _>(name) {
                         v.map(|i| Value::Number(i.into())).unwrap_or(Value::Null)
                     } else if let Ok(v) = r.try_get::<Option<f64>, _>(name) {
@@ -543,7 +537,7 @@ pub async fn import_data(
             let id = p
                 .get("id")
                 .and_then(|v| v.as_str())
-                .unwrap_or_else(|| "")
+                .unwrap_or("")
                 .to_string();
             let existing: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM UserProfile")
                 .fetch_one(&st.db)

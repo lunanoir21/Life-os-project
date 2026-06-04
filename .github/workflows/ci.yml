@@ -6,13 +6,25 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel redundant runs for the same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: file:./prisma/dev.db
+  NEXT_TELEMETRY_DISABLED: 1
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Frontend job: typecheck → lint → test → build
+# ─────────────────────────────────────────────────────────────────────────────
 jobs:
   frontend:
-    name: Frontend Tests
+    name: Frontend
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Bun
@@ -20,7 +32,7 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Cache Bun dependencies
+      - name: Restore Bun cache
         uses: actions/cache@v4
         with:
           path: ~/.bun/install/cache
@@ -31,47 +43,48 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Generate Prisma Client
+      - name: Generate Prisma client
         run: bun run db:generate
 
       - name: Type-check
         run: bun run typecheck
 
-      - name: Run linter
+      - name: Lint
         run: bun run lint
 
-      - name: Run tests
+      - name: Test
         run: bun run test
 
-      - name: Cache Next.js build
+      - name: Restore Next.js build cache
         uses: actions/cache@v4
         with:
-          path: |
-            .next/cache
+          path: .next/cache
           key: ${{ runner.os }}-nextjs-${{ hashFiles('**/bun.lock') }}-${{ hashFiles('**/*.ts', '**/*.tsx') }}
           restore-keys: |
             ${{ runner.os }}-nextjs-${{ hashFiles('**/bun.lock') }}-
+            ${{ runner.os }}-nextjs-
 
-      - name: Build application
+      - name: Build
         run: bun run build
-        env:
-          DATABASE_URL: file:./dev.db
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Backend job: fmt → clippy → test
+# ─────────────────────────────────────────────────────────────────────────────
   backend:
-    name: Backend Tests
+    name: Backend
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Rust
+      - name: Setup Rust (stable + rustfmt + clippy)
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
           components: rustfmt, clippy
 
-      - name: Cache Rust dependencies
+      - name: Restore Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: backend
@@ -80,10 +93,9 @@ jobs:
         run: cargo fmt --check
         working-directory: backend
 
-      - name: Run Clippy
+      - name: Clippy (deny warnings)
         run: cargo clippy --all-targets --all-features -- -D warnings
         working-directory: backend
-        continue-on-error: true  # Allow clippy warnings for now
 
       - name: Run tests
         run: cargo test --no-fail-fast

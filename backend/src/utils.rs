@@ -37,7 +37,7 @@ pub fn value_to_ms(v: &Value) -> Option<i64> {
 
 /// `body[key] ? new Date(value) : null`
 pub fn opt_ms(body: &Value, key: &str) -> Option<i64> {
-    body.get(key).and_then(|v| value_to_ms(v))
+    body.get(key).and_then(value_to_ms)
 }
 
 /// Parse a `YYYY-MM-DD` string to midnight-UTC milliseconds (for HabitLog date).
@@ -70,6 +70,7 @@ pub fn str_or<'a>(body: &'a Value, key: &str, default: &'a str) -> String {
 }
 
 /// `value || null` for numbers — 0 is falsy in JS.
+#[allow(dead_code)]
 pub fn truthy_i64(body: &Value, key: &str) -> Option<i64> {
     match body.get(key).and_then(|v| v.as_i64()) {
         Some(0) | None => None,
@@ -77,6 +78,7 @@ pub fn truthy_i64(body: &Value, key: &str) -> Option<i64> {
     }
 }
 
+#[allow(dead_code)]
 pub fn truthy_f64(body: &Value, key: &str) -> Option<f64> {
     match body.get(key).and_then(|v| v.as_f64()) {
         Some(v) if v != 0.0 => Some(v),
@@ -109,6 +111,7 @@ pub fn patch_i64(body: &Value, key: &str) -> Option<Option<i64>> {
     body.get(key).map(|v| v.as_i64())
 }
 
+#[allow(dead_code)]
 pub fn patch_f64(body: &Value, key: &str) -> Option<Option<f64>> {
     body.get(key).map(|v| v.as_f64())
 }

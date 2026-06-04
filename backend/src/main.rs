@@ -16,8 +16,8 @@ async fn main() {
     let raw_url =
         std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:../prisma/dev.db".to_string());
     // Accept Prisma-style `file:` prefix as well as sqlx-style `sqlite:`
-    let database_url = if raw_url.starts_with("file:") {
-        format!("sqlite:{}", &raw_url[5..])
+    let database_url = if let Some(rest) = raw_url.strip_prefix("file:") {
+        format!("sqlite:{rest}")
     } else {
         raw_url
     };

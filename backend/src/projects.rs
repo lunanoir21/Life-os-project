@@ -126,6 +126,7 @@ pub(crate) struct SubTask {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub(crate) struct GoalRefFull {
     id: String,
     title: String,

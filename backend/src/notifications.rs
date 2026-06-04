@@ -487,8 +487,8 @@ pub async fn get_notifications(
 
     // 14. Sunday backup reminder
     let day_of_week = {
-        let days_since_epoch = (now / 86_400_000) as i64;
-        ((days_since_epoch + 4) % 7)
+        let days_since_epoch = now / 86_400_000;
+        (days_since_epoch + 4) % 7
     }; // 0=Mon..6=Sun
     if day_of_week == 6 && hour >= 10 {
         notifications.push(Notification {

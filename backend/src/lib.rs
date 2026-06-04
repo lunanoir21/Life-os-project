@@ -1,3 +1,5 @@
+#![allow(unused_assignments)] // push_set!/sep! macros leave `first` written but unread after last use
+
 mod activity;
 mod courses;
 mod dashboard;

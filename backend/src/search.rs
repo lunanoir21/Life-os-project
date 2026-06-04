@@ -23,6 +23,7 @@ pub(crate) struct SearchResult {
 }
 
 #[derive(Serialize)]
+#[allow(dead_code)]
 pub(crate) struct SearchResponse {
     results: Vec<SearchResult>,
     query: String,

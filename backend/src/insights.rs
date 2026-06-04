@@ -328,12 +328,10 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
     if this_month_expenses > 0.0 || last_month_expenses > 0.0 {
         let change = if last_month_expenses > 0.0 {
             ((this_month_expenses - last_month_expenses) / last_month_expenses * 100.0) as i64
+        } else if this_month_expenses > 0.0 {
+            100
         } else {
-            if this_month_expenses > 0.0 {
-                100
-            } else {
-                0
-            }
+            0
         };
         let savings_rate = if this_month_income > 0.0 {
             ((this_month_income - this_month_expenses) / this_month_income * 100.0) as i64

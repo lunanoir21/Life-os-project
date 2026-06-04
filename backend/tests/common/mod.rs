@@ -51,6 +51,7 @@ pub async fn setup_test_db() -> (SqlitePool, NamedTempFile) {
 /// Build a test app instance with an isolated database.
 /// Returns (app_router, temp_db_file).
 /// The temp_db_file must be kept alive for the duration of the test.
+#[allow(dead_code)]
 pub async fn setup_test_app() -> (axum::Router, NamedTempFile) {
     let (pool, temp_file) = setup_test_db().await;
     let app = build_app(pool);
@@ -58,11 +59,13 @@ pub async fn setup_test_app() -> (axum::Router, NamedTempFile) {
 }
 
 /// Helper to convert Prisma DateTime milliseconds to current timestamp
+#[allow(dead_code)]
 pub fn now_ms() -> i64 {
     chrono::Utc::now().timestamp_millis()
 }
 
 /// Helper to generate a test CUID (uses the real cuid crate)
+#[allow(dead_code)]
 pub fn gen_test_id() -> String {
     cuid::cuid1().expect("Failed to generate test ID")
 }
