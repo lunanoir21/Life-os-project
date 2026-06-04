@@ -18,6 +18,11 @@ import {
   Sparkles,
   PartyPopper,
   X,
+  Minus,
+  Hash,
+  AlertTriangle,
+  Target,
+  Star,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -63,14 +68,30 @@ function mapApiHabit(apiHabit: Record<string, unknown>) {
     return d ? d.split('T')[0] : ''
   }).filter(Boolean).sort().reverse()
 
+  const targetCount = (apiHabit.targetCount as number) || 1
+
+  // Get today's actual count
+  const todayLog = logs.find((l: Record<string, unknown>) => {
+    const d = l.date as string
+    return d && d.split('T')[0] === today
+  })
+  const todayCount = (todayLog?.count as number) || 0
+
+  // Streak: allow 1-day gap (streak protection)
   let streak = 0
   const checkDate = new Date()
+  let allowedGap = 1 // one missed day is forgiven per streak
   for (let i = 0; i < 365; i++) {
     const dateStr = checkDate.toISOString().split('T')[0]
     if (logDates.includes(dateStr)) {
       streak++
       checkDate.setDate(checkDate.getDate() - 1)
     } else if (i === 0) {
+      // Today not yet logged — still OK (grace period)
+      checkDate.setDate(checkDate.getDate() - 1)
+    } else if (allowedGap > 0) {
+      // Allow one missed day per streak
+      allowedGap--
       checkDate.setDate(checkDate.getDate() - 1)
     } else {
       break
@@ -84,7 +105,7 @@ function mapApiHabit(apiHabit: Record<string, unknown>) {
   }).length
   const completionRate = Math.round((last30 / 30) * 100)
 
-  const isCompletedToday = logDates.includes(today)
+  const isCompletedToday = targetCount > 1 ? todayCount >= targetCount : logDates.includes(today)
 
   return {
     id: apiHabit.id as string,
@@ -94,8 +115,9 @@ function mapApiHabit(apiHabit: Record<string, unknown>) {
     color: colorClass,
     colorHex: color,
     frequency: (apiHabit.frequency as string) || 'daily',
-    targetCount: (apiHabit.targetCount as number) || 1,
+    targetCount,
     unit: (apiHabit.unit as string) || 'session',
+    todayCount,
     tags: (apiHabit.tags as Record<string, unknown>[])?.map((t: Record<string, unknown>) => ((t.tag as Record<string, unknown>)?.name as string) || '').filter(Boolean) || [],
     logs: logDates,
     streak,
@@ -163,16 +185,16 @@ function StreakReminderBanner({ habits }: { habits: { streak: number; name: stri
     : null
 
   let message = ''
-  let icon = ''
+  let StreakIcon: React.ComponentType<{ className?: string }> = Sparkles
 
   if (maxStreakHabit) {
-    icon = '🔥'
+    StreakIcon = Flame
     message = t('habits.streakOnFire', { count: String(maxStreakHabit.streak) })
   } else if (highestRiskHabit) {
-    icon = '⚠️'
+    StreakIcon = AlertTriangle
     message = t('habits.streakAtRisk', { count: String(highestRiskHabit.streak), name: highestRiskHabit.name })
   } else {
-    icon = '✨'
+    StreakIcon = Sparkles
     message = t('habits.startNewHabit')
   }
 
@@ -185,7 +207,7 @@ function StreakReminderBanner({ habits }: { habits: { streak: number; name: stri
     <Card className="motivational-gradient overflow-hidden relative">
       <CardContent className="p-4 pr-10">
         <div className="flex items-center gap-3">
-          <span className="text-2xl">{icon}</span>
+          <StreakIcon className="size-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
           <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">{message}</p>
         </div>
       </CardContent>
@@ -206,10 +228,10 @@ function MotivationalBanner({ show, habitCount }: { show: boolean; habitCount: n
   const { t } = useTranslation()
   if (!show) return null
 
-  const messages = [
-    { emoji: '🏆', text: t('habits.allHabitsComplete'), subtext: t('habits.keepTomorrow') },
-    { emoji: '🌟', text: t('habits.perfectDay'), subtext: t('habits.habitsCheckedOff', { count: String(habitCount) }) },
-    { emoji: '🎯', text: t('habits.hundredPercent'), subtext: t('habits.consistencyKey') },
+  const messages: Array<{ icon: React.ComponentType<{ className?: string }>; text: string; subtext: string }> = [
+    { icon: Trophy, text: t('habits.allHabitsComplete'), subtext: t('habits.keepTomorrow') },
+    { icon: Star, text: t('habits.perfectDay'), subtext: t('habits.habitsCheckedOff', { count: String(habitCount) }) },
+    { icon: Target, text: t('habits.hundredPercent'), subtext: t('habits.consistencyKey') },
   ]
   const msg = messages[Math.floor(Math.random() * messages.length)]
 
@@ -221,7 +243,7 @@ function MotivationalBanner({ show, habitCount }: { show: boolean; habitCount: n
       className="motivational-gradient rounded-xl p-4 border border-emerald-200/50 dark:border-emerald-800/30"
     >
       <div className="flex items-center gap-3">
-        <div className="text-3xl animate-bounce-in">{msg.emoji}</div>
+        <msg.icon className="size-7 shrink-0 text-emerald-500 dark:text-emerald-400 animate-bounce-in" />
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <Trophy className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -258,8 +280,8 @@ export function HabitsPage() {
   const [habitView, setHabitView] = useState<'list' | 'calendar' | 'analytics'>('list')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [editHabit, setEditHabit] = useState<{ id: string; name: string; description: string; frequency: string; color: string; icon: string } | null>(null)
-  const [newHabit, setNewHabit] = useState({ name: '', description: '', frequency: 'daily', color: '#10b981', icon: '✅' })
+  const [editHabit, setEditHabit] = useState<{ id: string; name: string; description: string; frequency: string; color: string; icon: string; targetCount: number; unit: string } | null>(null)
+  const [newHabit, setNewHabit] = useState({ name: '', description: '', frequency: 'daily', color: '#10b981', icon: '✅', targetCount: 1, unit: 'session' })
   const [soundIndicator, setSoundIndicator] = useState<string | null>(null)
 
   const today = new Date().toISOString().split('T')[0]
@@ -275,12 +297,29 @@ export function HabitsPage() {
     if (!habit) return
     if (!habit.isCompletedToday) {
       logHabitMutation.mutate({ habitId, date: today, count: 1 })
-      // Show sound indicator
       setSoundIndicator(habitId)
       setTimeout(() => setSoundIndicator(null), 600)
       showToast.success(t('toast.completed'))
     }
   }, [habits, logHabitMutation, today, t])
+
+  const incrementHabitCount = useCallback((habitId: string) => {
+    const habit = habits.find(h => h.id === habitId)
+    if (!habit || habit.todayCount >= habit.targetCount) return
+    const newCount = habit.todayCount + 1
+    logHabitMutation.mutate({ habitId, date: today, count: newCount })
+    if (newCount >= habit.targetCount) {
+      setSoundIndicator(habitId)
+      setTimeout(() => setSoundIndicator(null), 600)
+      showToast.success(t('toast.completed'))
+    }
+  }, [habits, logHabitMutation, today, t])
+
+  const decrementHabitCount = useCallback((habitId: string) => {
+    const habit = habits.find(h => h.id === habitId)
+    if (!habit || habit.todayCount <= 0) return
+    logHabitMutation.mutate({ habitId, date: today, count: Math.max(0, habit.todayCount - 1) })
+  }, [habits, logHabitMutation, today])
 
   const handleAddHabit = useCallback(() => {
     if (!newHabit.name.trim()) return
@@ -290,11 +329,11 @@ export function HabitsPage() {
       icon: newHabit.icon,
       color: newHabit.color,
       frequency: newHabit.frequency,
-      targetCount: 1,
-      unit: 'session',
+      targetCount: newHabit.targetCount,
+      unit: newHabit.unit,
     }, {
       onSuccess: () => {
-        setNewHabit({ name: '', description: '', frequency: 'daily', color: '#10b981', icon: '✅' })
+        setNewHabit({ name: '', description: '', frequency: 'daily', color: '#10b981', icon: '✅', targetCount: 1, unit: 'session' })
         setCreateDialogOpen(false)
         showToast.success(t('toast.created'))
       }
@@ -302,7 +341,7 @@ export function HabitsPage() {
   }, [newHabit, createHabitMutation, t])
 
   const openEditDialog = useCallback((habit: typeof habits[0]) => {
-    setEditHabit({ id: habit.id, name: habit.name, description: habit.description, frequency: habit.frequency, color: habit.colorHex, icon: habit.icon })
+    setEditHabit({ id: habit.id, name: habit.name, description: habit.description, frequency: habit.frequency, color: habit.colorHex, icon: habit.icon, targetCount: habit.targetCount, unit: habit.unit })
     setEditDialogOpen(true)
   }, [])
 
@@ -315,6 +354,8 @@ export function HabitsPage() {
       frequency: editHabit.frequency,
       color: editHabit.color,
       icon: editHabit.icon,
+      targetCount: editHabit.targetCount,
+      unit: editHabit.unit,
     }, {
       onSuccess: () => {
         setEditDialogOpen(false)
@@ -387,7 +428,6 @@ export function HabitsPage() {
               {bestStreak >= 7 && (
                 <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 text-[10px] font-medium" style={{ '--flame-scale': `${Math.min(1 + bestStreak * 0.03, 1.5)}` } as React.CSSProperties}>
                   <Flame className="h-3 w-3 animate-fire animate-flame-grow" />
-                  🔥
                 </div>
               )}
             </div>
@@ -436,6 +476,20 @@ export function HabitsPage() {
                 <div><label className="text-sm font-medium mb-1.5 block">{t('habits.frequency')}</label><Select value={editHabit.frequency} onValueChange={v => setEditHabit(p => p && ({ ...p, frequency: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="daily">{t('habits.daily')}</SelectItem><SelectItem value="weekly">{t('habits.weekly')}</SelectItem><SelectItem value="custom">{t('custom')}</SelectItem></SelectContent></Select></div>
                 <div><label className="text-sm font-medium mb-1.5 block">{t('habits.color')}</label><div className="flex gap-1.5 mt-1">{habitColors.map(c => { const hex = habitColorMap[c]; return <button key={c} className={cn('w-6 h-6 rounded-full transition-transform', c, editHabit.color === hex ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'hover:scale-105')} onClick={() => setEditHabit(p => p && ({ ...p, color: hex }))} /> })}</div></div>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-1.5 flex items-center gap-1.5"><Hash className="h-3.5 w-3.5 text-muted-foreground" />Günlük Hedef</label>
+                  <div className="flex items-center gap-2">
+                    <button className="w-7 h-7 rounded border border-border flex items-center justify-center hover:bg-accent" onClick={() => setEditHabit(p => p && ({ ...p, targetCount: Math.max(1, p.targetCount - 1) }))}><Minus className="h-3 w-3" /></button>
+                    <span className="text-sm font-medium w-8 text-center">{editHabit.targetCount}</span>
+                    <button className="w-7 h-7 rounded border border-border flex items-center justify-center hover:bg-accent" onClick={() => setEditHabit(p => p && ({ ...p, targetCount: Math.min(99, p.targetCount + 1) }))}><Plus className="h-3 w-3" /></button>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">Birim</label>
+                  <Input placeholder="glass, km, min..." value={editHabit.unit} onChange={e => setEditHabit(p => p && ({ ...p, unit: e.target.value }))} />
+                </div>
+              </div>
             </div>
           )}
           <DialogFooter><DialogClose asChild><Button variant="outline">{t('cancel')}</Button></DialogClose><Button onClick={handleUpdateHabit} disabled={updateHabitMutation.isPending}>{t('save')}</Button></DialogFooter>
@@ -464,6 +518,20 @@ export function HabitsPage() {
                 <div><label className="text-sm font-medium mb-1.5 block">{t('habits.frequency')}</label><Select value={newHabit.frequency} onValueChange={v => setNewHabit(p => ({ ...p, frequency: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="daily">{t('habits.daily')}</SelectItem><SelectItem value="weekly">{t('habits.weekly')}</SelectItem><SelectItem value="custom">{t('custom')}</SelectItem></SelectContent></Select></div>
                 <div><label className="text-sm font-medium mb-1.5 block">{t('habits.color')}</label><div className="flex gap-1.5 mt-1">{habitColors.map(c => { const hex = habitColorMap[c]; return <button key={c} className={cn('w-6 h-6 rounded-full transition-transform', c, newHabit.color === hex ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'hover:scale-105')} onClick={() => setNewHabit(p => ({ ...p, color: hex }))} /> })}</div></div>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-1.5 flex items-center gap-1.5"><Hash className="h-3.5 w-3.5 text-muted-foreground" />Günlük Hedef</label>
+                  <div className="flex items-center gap-2">
+                    <button className="w-7 h-7 rounded border border-border flex items-center justify-center hover:bg-accent" onClick={() => setNewHabit(p => ({ ...p, targetCount: Math.max(1, p.targetCount - 1) }))}><Minus className="h-3 w-3" /></button>
+                    <span className="text-sm font-medium w-8 text-center">{newHabit.targetCount}</span>
+                    <button className="w-7 h-7 rounded border border-border flex items-center justify-center hover:bg-accent" onClick={() => setNewHabit(p => ({ ...p, targetCount: Math.min(99, p.targetCount + 1) }))}><Plus className="h-3 w-3" /></button>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">Birim</label>
+                  <Input placeholder="glass, km, min..." value={newHabit.unit} onChange={e => setNewHabit(p => ({ ...p, unit: e.target.value }))} />
+                </div>
+              </div>
             </div>
             <DialogFooter><DialogClose asChild><Button variant="outline">{t('cancel')}</Button></DialogClose><Button onClick={handleAddHabit} disabled={createHabitMutation.isPending}>{t('create')}</Button></DialogFooter>
           </DialogContent>
@@ -487,6 +555,35 @@ export function HabitsPage() {
                   <div className={cn('absolute left-0 top-0 bottom-0 w-1', habit.color)} />
                   <CardContent className="p-4 pl-5">
                     <div className="flex items-center gap-4">
+                      {/* Counter UI for targetCount > 1, checkbox for simple habits */}
+                      {habit.targetCount > 1 ? (
+                        <div className="relative shrink-0 flex flex-col items-center gap-1">
+                          <div className="flex items-center gap-1">
+                            <button
+                              className="w-6 h-6 rounded-full border border-border flex items-center justify-center hover:bg-accent transition-colors disabled:opacity-40"
+                              onClick={() => decrementHabitCount(habit.id)}
+                              disabled={habit.todayCount <= 0}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </button>
+                            <div className="w-10 text-center">
+                              <span className="text-sm font-bold" style={{ color }}>{habit.todayCount}</span>
+                              <span className="text-xs text-muted-foreground">/{habit.targetCount}</span>
+                            </div>
+                            <button
+                              className="w-6 h-6 rounded-full border border-border flex items-center justify-center hover:bg-accent transition-colors disabled:opacity-40"
+                              onClick={() => incrementHabitCount(habit.id)}
+                              disabled={habit.todayCount >= habit.targetCount}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </button>
+                          </div>
+                          <div className="w-16 h-1 rounded-full bg-muted/50 overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-300" style={{ width: `${Math.min(100, (habit.todayCount / habit.targetCount) * 100)}%`, background: color }} />
+                          </div>
+                          <SoundIndicator show={soundIndicator === habit.id} />
+                        </div>
+                      ) : (
                       <button
                         className="relative shrink-0 cursor-pointer"
                         onClick={() => toggleHabitToday(habit.id)}
@@ -507,6 +604,7 @@ export function HabitsPage() {
                         {/* Sound feedback indicator */}
                         <SoundIndicator show={soundIndicator === habit.id} />
                       </button>
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-sm">{habit.icon}</span>

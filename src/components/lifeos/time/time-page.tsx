@@ -547,7 +547,7 @@ export function TimePage() {
 
   // Weekly chart data
   const weeklyChartData = useMemo(() => {
-    const days = []
+    const days: { day: string; date: string; hours: number; isToday: boolean }[] = []
     for (let i = 6; i >= 0; i--) {
       const date = subDays(new Date(), i)
       const dateStr = format(date, 'yyyy-MM-dd')

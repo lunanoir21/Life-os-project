@@ -8,9 +8,36 @@ const nextConfig: NextConfig = {
   // directory as the workspace root and nest the output).
   outputFileTracingRoot: path.join(__dirname),
   typescript: {
-    ignoreBuildErrors: true,
+    // Type errors must be resolved before shipping — do not suppress them.
+    ignoreBuildErrors: false,
   },
   reactStrictMode: false,
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-XSS-Protection", value: "1; mode=block" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          {
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: blob:",
+              "font-src 'self' data:",
+              "connect-src 'self'",
+              "frame-ancestors 'none'",
+            ].join("; "),
+          },
+        ],
+      },
+    ];
+  },
   // Proxy the ported modules to the Rust backend. Only routes listed here are
   // forwarded; every other /api/* path is still served by the Next.js route
   // handlers. As more modules move to Rust, add their paths below.

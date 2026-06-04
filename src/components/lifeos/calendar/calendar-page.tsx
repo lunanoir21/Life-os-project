@@ -423,7 +423,7 @@ export function CalendarPage() {
           <DialogHeader><DialogTitle>{t('edit')} {t('calendar.title')}</DialogTitle><DialogDescription className="sr-only">Edit event</DialogDescription></DialogHeader>
           {editEvent && (
             <div className="space-y-4 py-2">
-              <div><label className="text-sm font-medium mb-1.5 block">{t('calendar.title')}</label><Input value={editEvent.title} onChange={e => setEditEvent(p => p && ({ ...p, title: e.target.value }))} /></div>
+              <div><label className="text-sm font-medium mb-1.5 block">{t('calendar.titleField')}</label><Input value={editEvent.title} onChange={e => setEditEvent(p => p && ({ ...p, title: e.target.value }))} /></div>
               <div><label className="text-sm font-medium mb-1.5 block">{t('calendar.description')}</label><Input placeholder={t('calendar.optionalDescription')} value={editEvent.description} onChange={e => setEditEvent(p => p && ({ ...p, description: e.target.value }))} /></div>
               <div><label className="text-sm font-medium mb-1.5 block">{t('calendar.location')}</label><Input placeholder={t('calendar.optional')} value={editEvent.location} onChange={e => setEditEvent(p => p && ({ ...p, location: e.target.value }))} /></div>
               <div><label className="text-sm font-medium mb-1.5 block">{t('calendar.color')}</label><div className="flex gap-1.5 mt-1 flex-wrap">{eventColors.map(c => (<button key={c} className={cn('w-6 h-6 rounded-full transition-all', editEvent.color === c ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'hover:scale-105')} style={{ backgroundColor: c }} onClick={() => setEditEvent(p => p && ({ ...p, color: c }))} />))}</div></div>
@@ -486,7 +486,7 @@ export function CalendarPage() {
                 <DialogHeader><DialogTitle>{t('calendar.newEvent')}</DialogTitle><DialogDescription className="sr-only">{t('calendar.createEventSrOnly')}</DialogDescription></DialogHeader>
                 <div className="space-y-4 py-2">
                   <div>
-                    <label className="text-sm font-medium mb-1.5 block">{t('calendar.title')}</label>
+                    <label className="text-sm font-medium mb-1.5 block">{t('calendar.titleField')}</label>
                     <Input placeholder={t('calendar.eventTitlePlaceholder')} value={newEvent.title} onChange={e => setNewEvent(p => ({ ...p, title: e.target.value }))} />
                   </div>
                   <div>

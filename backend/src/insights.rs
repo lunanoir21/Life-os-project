@@ -42,10 +42,14 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
     // Month boundaries
     let (this_month_start, last_month_start, last_month_end) = {
         use chrono::{Datelike, TimeZone, Utc};
-        let dt = Utc.timestamp_millis_opt(now).unwrap();
+        let dt = Utc
+            .timestamp_millis_opt(now)
+            .single()
+            .unwrap_or_else(Utc::now);
         let tms = Utc
             .with_ymd_and_hms(dt.year(), dt.month(), 1, 0, 0, 0)
-            .unwrap()
+            .single()
+            .unwrap_or_else(Utc::now)
             .timestamp_millis();
         let (lmy, lmm) = if dt.month() == 1 {
             (dt.year() - 1, 12u32)
@@ -54,7 +58,8 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
         };
         let lms = Utc
             .with_ymd_and_hms(lmy, lmm, 1, 0, 0, 0)
-            .unwrap()
+            .single()
+            .unwrap_or_else(Utc::now)
             .timestamp_millis();
         let lme = tms - 1;
         (tms, lms, lme)

@@ -26,11 +26,43 @@ mod utils;
 mod weekly_review;
 
 use axum::{
+    extract::{DefaultBodyLimit, Request},
+    http::StatusCode,
+    middleware::{self, Next},
+    response::Response,
     routing::{delete, get, patch, post},
-    Router,
+    Json, Router,
 };
 use sqlx::SqlitePool;
-use tower_http::cors::CorsLayer;
+use tower::limit::ConcurrencyLimitLayer;
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
+
+// ─── Health check ────────────────────────────────────────────────────────────
+
+async fn health_check() -> Json<serde_json::Value> {
+    Json(serde_json::json!({ "status": "ok" }))
+}
+
+// ─── Optional bearer-token auth ──────────────────────────────────────────────
+// If the API_KEY environment variable is set (and non-empty), every request to
+// /api/* must carry `Authorization: Bearer <API_KEY>`.  Leave it unset in
+// development for a seamless local experience.
+
+async fn auth_middleware(req: Request, next: Next) -> Result<Response, StatusCode> {
+    if let Ok(api_key) = std::env::var("API_KEY") {
+        if !api_key.is_empty() {
+            let provided = req
+                .headers()
+                .get(axum::http::header::AUTHORIZATION)
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("");
+            if provided != format!("Bearer {api_key}") {
+                return Err(StatusCode::UNAUTHORIZED);
+            }
+        }
+    }
+    Ok(next.run(req).await)
+}
 
 #[derive(Clone)]
 pub struct AppState {
@@ -43,7 +75,24 @@ pub struct AppState {
 pub fn build_app(pool: SqlitePool) -> Router {
     let state = AppState { db: pool };
 
-    Router::new()
+    // ── Build CORS ────────────────────────────────────────────────────────────
+    let cors = {
+        let allowed = std::env::var("ALLOWED_ORIGIN").unwrap_or_default();
+        if allowed.is_empty() {
+            CorsLayer::permissive()
+        } else {
+            use axum::http::HeaderValue;
+            CorsLayer::new().allow_origin(
+                allowed
+                    .parse::<HeaderValue>()
+                    .map(tower_http::cors::AllowOrigin::exact)
+                    .unwrap_or_else(|_| tower_http::cors::AllowOrigin::any()),
+            )
+        }
+    };
+
+    // ── API routes (protected by optional auth middleware) ────────────────────
+    let api = Router::new()
         // Tasks
         .route(
             "/api/tasks",
@@ -207,24 +256,19 @@ pub fn build_app(pool: SqlitePool) -> Router {
         .route("/api/data/import", post(data::import_data))
         .route("/api/data/reset", delete(data::reset_data))
         .route("/api/data/stats", get(data::get_stats))
-        .layer(
-            // Rust backend is an internal service called only by the Next.js
-            // server-side proxy. Permissive by default; set ALLOWED_ORIGIN to
-            // restrict direct browser access when port 8080 is publicly exposed.
-            {
-                let allowed = std::env::var("ALLOWED_ORIGIN").unwrap_or_default();
-                if allowed.is_empty() {
-                    CorsLayer::permissive()
-                } else {
-                    use axum::http::HeaderValue;
-                    CorsLayer::new().allow_origin(
-                        allowed
-                            .parse::<HeaderValue>()
-                            .map(tower_http::cors::AllowOrigin::exact)
-                            .unwrap_or_else(|_| tower_http::cors::AllowOrigin::any()),
-                    )
-                }
-            },
-        )
-        .with_state(state)
+        .layer(middleware::from_fn(auth_middleware))
+        .with_state(state);
+
+    // ── Top-level router ──────────────────────────────────────────────────────
+    // /health is always unauthenticated (used by Docker healthcheck and monitors)
+    Router::new()
+        .route("/health", get(health_check))
+        .merge(api)
+        // Outermost layers (apply to every route, including /health)
+        .layer(cors)
+        .layer(TraceLayer::new_for_http())
+        // Reject bodies larger than 10 MB (protects the /api/data/import endpoint)
+        .layer(DefaultBodyLimit::max(10 * 1024 * 1024))
+        // Limit maximum in-flight requests to prevent accidental overload
+        .layer(ConcurrencyLimitLayer::new(200))
 }

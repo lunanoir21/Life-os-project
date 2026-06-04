@@ -83,7 +83,7 @@ function mapApiNote(apiNote: Record<string, unknown>): Note {
     id: apiNote.id as string,
     title: apiNote.title as string,
     content: (apiNote.content as string) || '',
-    type: (apiNote.type as string) || 'note',
+    type: ((apiNote.type as string) || 'note') as Note['type'],
     icon: (apiNote.icon as string) || null,
     color: (apiNote.color as string) || null,
     isPinned: (apiNote.isPinned as boolean) || false,

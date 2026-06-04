@@ -134,11 +134,12 @@ pub async fn import_data(
     Json(body): Json<Value>,
 ) -> Result<Json<Value>, AppError> {
     let version = body.get("version");
-    let data = body.get("data");
-    if version.is_none() || data.is_none() {
-        return Err(AppError::BadRequest("Invalid import format".to_string()));
+    if version.is_none() {
+        return Err(AppError::BadRequest("Invalid import format: missing 'version'".to_string()));
     }
-    let data = data.unwrap();
+    let data = body
+        .get("data")
+        .ok_or_else(|| AppError::BadRequest("Invalid import format: missing 'data'".to_string()))?;
     let mut results: serde_json::Map<String, Value> = serde_json::Map::new();
     let now = now_ms();
 

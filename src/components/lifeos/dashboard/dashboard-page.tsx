@@ -19,7 +19,25 @@ import {
   Moon,
   CloudSun,
   Settings2,
+  GripVertical,
 } from 'lucide-react'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -29,7 +47,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Switch } from '@/components/ui/switch'
 import { useAppStore } from '@/stores/app-store'
 import { useTranslation } from '@/lib/i18n'
-import { useDashboard, useTasks, useEvents } from '@/lib/api/hooks'
+import { useDashboard, useTasks, useEvents, useHabits } from '@/lib/api/hooks'
 import { JournalPrompts } from '@/components/lifeos/dashboard/journal-prompts'
 import { WeeklyReview } from '@/components/lifeos/dashboard/weekly-review'
 import { QuickCapture } from '@/components/lifeos/dashboard/quick-capture'
@@ -41,6 +59,25 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 function cn(...inputs: (string | undefined | false)[]) {
   return inputs.filter(Boolean).join(' ')
+}
+
+function SortableWidgetRow({ id, label, enabled, onToggle }: { id: string; label: string; enabled: boolean; onToggle: (checked: boolean) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 999 : undefined,
+  }
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-2 py-0.5">
+      <button {...attributes} {...listeners} className="text-muted-foreground/40 hover:text-muted-foreground cursor-grab active:cursor-grabbing touch-none">
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <label htmlFor={`widget-${id}`} className="text-sm cursor-pointer flex-1">{label}</label>
+      <Switch id={`widget-${id}`} checked={enabled} onCheckedChange={onToggle} />
+    </div>
+  )
 }
 
 const accentColorHexMap: Record<string, string> = {
@@ -104,6 +141,11 @@ function ProgressRing({ value, size = 120, strokeWidth = 8, color = 'var(--accen
 
 export function DashboardPage() {
   const { setActiveModule, setCommandPaletteOpen, language, accentColor, dashboardWidgets, setDashboardWidgets } = useAppStore()
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
   const { t, tArray } = useTranslation()
   const ringColor = accentColorHexMap[accentColor] || '#10b981'
   const ringColorLight = accentColorLightHexMap[accentColor] || '#34d399'
@@ -120,21 +162,59 @@ export function DashboardPage() {
     { label: t('dashboard.focusTimer'), icon: Timer, module: 'time' as const },
   ], [t])
 
-  // Translated widget list for customize popover
-  const widgetList = useMemo(() => [
-    { id: 'day-progress', label: t('dashboard.widgetDayProgressBar') },
-    { id: 'stats-cards', label: t('dashboard.widgetStatsCards') },
-    { id: 'today-tasks', label: t('dashboard.widgetTodayTasks') },
-    { id: 'weekly-activity', label: t('dashboard.widgetWeeklyActivity') },
-    { id: 'quick-capture', label: t('dashboard.widgetQuickCapture') },
-    { id: 'progress-ring', label: t('dashboard.widgetProgressRing') },
-    { id: 'upcoming-events', label: t('dashboard.widgetUpcomingEvents') },
-    { id: 'mood-logger', label: t('dashboard.widgetMoodLogger') },
-    { id: 'journal-prompts', label: t('dashboard.widgetJournalPrompts') },
-    { id: 'onboarding-tips', label: t('dashboard.widgetOnboardingTips') },
-    { id: 'ai-insights', label: t('dashboard.widgetAiInsights') },
-    { id: 'daily-planner', label: t('dashboard.widgetDailyPlanner') },
-  ], [t])
+  // All available widget IDs in their default order
+  const allWidgetIds = [
+    'day-progress', 'stats-cards', 'today-tasks', 'weekly-activity',
+    'quick-capture', 'progress-ring', 'upcoming-events', 'mood-logger',
+    'journal-prompts', 'onboarding-tips', 'ai-insights', 'daily-planner',
+  ]
+
+  // Widget order state — derive from dashboardWidgets + any missing ids appended
+  const [widgetOrder, setWidgetOrder] = useState<string[]>(() => {
+    const existing = dashboardWidgets.filter(id => allWidgetIds.includes(id))
+    const missing = allWidgetIds.filter(id => !existing.includes(id))
+    return [...existing, ...missing]
+  })
+
+  const widgetLabelMap = useMemo(() => ({
+    'day-progress': t('dashboard.widgetDayProgressBar'),
+    'stats-cards': t('dashboard.widgetStatsCards'),
+    'today-tasks': t('dashboard.widgetTodayTasks'),
+    'weekly-activity': t('dashboard.widgetWeeklyActivity'),
+    'quick-capture': t('dashboard.widgetQuickCapture'),
+    'progress-ring': t('dashboard.widgetProgressRing'),
+    'upcoming-events': t('dashboard.widgetUpcomingEvents'),
+    'mood-logger': t('dashboard.widgetMoodLogger'),
+    'journal-prompts': t('dashboard.widgetJournalPrompts'),
+    'onboarding-tips': t('dashboard.widgetOnboardingTips'),
+    'ai-insights': t('dashboard.widgetAiInsights'),
+    'daily-planner': t('dashboard.widgetDailyPlanner'),
+  }), [t])
+
+  const handleWidgetDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      setWidgetOrder(prev => {
+        const oldIndex = prev.indexOf(active.id as string)
+        const newIndex = prev.indexOf(over.id as string)
+        const newOrder = arrayMove(prev, oldIndex, newIndex)
+        // Update enabled widgets list preserving the new order
+        setDashboardWidgets(newOrder.filter(id => dashboardWidgets.includes(id)))
+        return newOrder
+      })
+    }
+  }, [dashboardWidgets, setDashboardWidgets])
+
+  const handleWidgetToggle = useCallback((id: string, checked: boolean) => {
+    if (checked) {
+      // Add in its position from widgetOrder
+      const newEnabled = widgetOrder.filter(wid => dashboardWidgets.includes(wid) || wid === id)
+      setDashboardWidgets(newEnabled)
+    } else {
+      setDashboardWidgets(dashboardWidgets.filter((wid: string) => wid !== id))
+    }
+  }, [widgetOrder, dashboardWidgets, setDashboardWidgets])
+
 
   // Fetch profile for greeting personalization
   useEffect(() => {
@@ -172,6 +252,7 @@ export function DashboardPage() {
   // Fetch real data from API
   const { data: dashboard, isLoading: dashboardLoading } = useDashboard()
   const { data: tasks, isLoading: tasksLoading } = useTasks()
+  const { data: apiHabitsRaw } = useHabits()
   const { data: apiEvents } = useEvents({
     startDate: format(new Date(), 'yyyy-MM-dd'),
     endDate: format(addDays(new Date(), 7), 'yyyy-MM-dd'),
@@ -216,21 +297,36 @@ export function DashboardPage() {
     }))
   }, [apiEvents])
 
-  // Weekly activity chart data
+  // Weekly activity chart data — real data from tasks & habits
   const weeklyActivityData = useMemo(() => {
-    const days = []
+    const days: { day: string; tasks: number; habits: number }[] = []
+    const allTasks = (tasks as Record<string, unknown>[]) || []
+    const allHabits = (apiHabitsRaw as Record<string, unknown>[]) || []
+
     for (let i = 6; i >= 0; i--) {
       const date = subDays(new Date(), i)
-      const dayTasks = Math.max(0, Math.floor(Math.random() * 5) + (i === 0 ? pendingTasks : 2))
-      const dayHabits = Math.max(0, Math.floor(Math.random() * 4) + (i === 0 ? completedHabitsToday : 1))
-      days.push({
-        day: format(date, 'EEE'),
-        tasks: dayTasks,
-        habits: dayHabits,
-      })
+      const dateStr = format(date, 'yyyy-MM-dd')
+
+      // Count habits logged on this day
+      const dayHabits = allHabits.reduce((count, h) => {
+        const hLogs = (h.logs as Record<string, unknown>[]) || []
+        const hasLog = hLogs.some((l: Record<string, unknown>) => {
+          const d = l.date as string
+          return d && d.split('T')[0] === dateStr
+        })
+        return count + (hasLog ? 1 : 0)
+      }, 0)
+
+      // Count tasks completed on this day (updatedAt as proxy for completion date)
+      const dayTasks = allTasks.filter((task) => {
+        const updatedAt = task.updatedAt as string
+        return task.status === 'done' && updatedAt && updatedAt.split('T')[0] === dateStr
+      }).length
+
+      days.push({ day: format(date, 'EEE'), tasks: dayTasks, habits: dayHabits })
     }
     return days
-  }, [pendingTasks, completedHabitsToday])
+  }, [tasks, apiHabitsRaw])
 
   // Progress calculation for the ring
   const taskProgress = totalTasks > 0 ? Math.round(((tasksByStatus.done || 0) / totalTasks) * 100) : 0
@@ -318,25 +414,25 @@ export function DashboardPage() {
               <PopoverContent className="w-72" align="end">
                 <div className="space-y-3">
                   <h4 className="font-medium text-sm">{t('dashboard.dashboardWidgets')}</h4>
-                  <p className="text-xs text-muted-foreground">{t('dashboard.toggleSections')}</p>
-                  <div className="space-y-2.5">
-                    {widgetList.map((w) => (
-                      <div key={w.id} className="flex items-center justify-between">
-                        <label htmlFor={`widget-${w.id}`} className="text-sm cursor-pointer">{w.label}</label>
-                        <Switch
-                          id={`widget-${w.id}`}
-                          checked={dashboardWidgets.includes(w.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setDashboardWidgets([...dashboardWidgets, w.id])
-                            } else {
-                              setDashboardWidgets(dashboardWidgets.filter((id: string) => id !== w.id))
-                            }
-                          }}
-                        />
+                  <p className="text-xs text-muted-foreground">{t('dashboard.toggleSections')} · Sürükle ile sırala</p>
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleWidgetDragEnd}>
+                    <SortableContext items={widgetOrder} strategy={verticalListSortingStrategy}>
+                      <div className="space-y-1">
+                        {widgetOrder.map((id) => {
+                          const label = widgetLabelMap[id as keyof typeof widgetLabelMap] || id
+                          return (
+                            <SortableWidgetRow
+                              key={id}
+                              id={id}
+                              label={label}
+                              enabled={dashboardWidgets.includes(id)}
+                              onToggle={(checked) => handleWidgetToggle(id, checked)}
+                            />
+                          )
+                        })}
                       </div>
-                    ))}
-                  </div>
+                    </SortableContext>
+                  </DndContext>
                 </div>
               </PopoverContent>
             </Popover>

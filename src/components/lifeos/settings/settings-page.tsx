@@ -278,7 +278,7 @@ export function SettingsPage() {
                 <CardHeader><CardTitle className="text-base">{t('settings.profileInfo')}</CardTitle><CardDescription>{t('settings.updatePersonalInfo')}</CardDescription></CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg" style={{ background: `linear-gradient(to bottom right, ${activeAccentHex}, ${activeAccentHex}cc)`, ringColor: `${activeAccentHex}40` }}>{profileName.charAt(0).toUpperCase()}</div>
+                    <div className="w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg" style={{ background: `linear-gradient(to bottom right, ${activeAccentHex}, ${activeAccentHex}cc)`, '--tw-ring-color': `${activeAccentHex}40` } as React.CSSProperties}>{profileName.charAt(0).toUpperCase()}</div>
                     <div><h3 className="font-medium">{profileName}</h3><p className="text-sm text-muted-foreground">{profileEmail}</p></div>
                   </div>
                   <Separator />
@@ -353,7 +353,7 @@ export function SettingsPage() {
                       {accentColor.charAt(0).toUpperCase() + accentColor.slice(1)} accent
                     </Badge>
                     <Badge variant="secondary" className="text-[10px]">
-                      {theme?.charAt(0).toUpperCase() + theme?.slice(1)} {t('settings.theme').toLowerCase()}
+                      {(theme ?? '').charAt(0).toUpperCase() + (theme ?? '').slice(1)} {t('settings.theme').toLowerCase()}
                     </Badge>
                     <Badge variant="secondary" className="text-[10px]">
                       {fontSize.charAt(0).toUpperCase() + fontSize.slice(1)} {t('settings.fontSize').toLowerCase()}
@@ -544,9 +544,9 @@ export function SettingsPage() {
                             )}
                             style={{
                               backgroundColor: color.hex,
-                              ringColor: isActive ? color.hex : 'transparent',
+                              '--tw-ring-color': isActive ? color.hex : undefined,
                               boxShadow: isActive ? `0 0 12px ${color.hex}40` : undefined,
-                            }}
+                            } as React.CSSProperties}
                           >
                             {isActive && (
                               <motion.div
@@ -575,9 +575,9 @@ export function SettingsPage() {
                       )}
                       style={{
                         backgroundColor: customAccentColor,
-                        ringColor: accentColor === 'custom' ? customAccentColor : 'transparent',
+                        '--tw-ring-color': accentColor === 'custom' ? customAccentColor : undefined,
                         boxShadow: accentColor === 'custom' ? `0 0 12px ${customAccentColor}40` : undefined,
-                      }}
+                      } as React.CSSProperties}
                     >
                       {accentColor === 'custom' && (
                         <motion.div
@@ -1359,7 +1359,7 @@ export function SettingsPage() {
                       }}
                     />
                   </div>
-                  {notifPrefs.quietHoursEnabled && (
+                  {notifPrefs.quietHoursEnabled === true && (
                     <>
                       <Separator />
                       <div className="grid grid-cols-2 gap-4">

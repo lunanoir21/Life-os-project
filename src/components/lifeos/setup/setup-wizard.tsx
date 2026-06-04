@@ -45,6 +45,7 @@ import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import { useAppStore, type ModuleId } from '@/stores/app-store'
+import { useTranslation } from '@/lib/i18n'
 import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -132,198 +133,12 @@ const dashboardWidgetOptions = [
 const stepIcons = [Sparkles, Globe, Database, Palette, LayoutGrid, LayoutDashboard, PackagePlus, Rocket]
 const TOTAL_STEPS = stepIcons.length
 
-// ─── Localized Copy ──────────────────────────────────────────────────
-// Self-contained wizard dictionary. `en` is the source of truth; other
-// languages must match its shape. Missing languages fall back to `en`.
-
-const wizardEn = {
-  brandLine1: 'Welcome.',
-  brandLine2: "Let's set up your workspace.",
-  brandSub: 'A few quick choices to make Life OS feel like home.',
-  stepOf: 'Step {n} of {total}',
-  steps: [
-    { title: 'Welcome', description: 'Get started with Life OS' },
-    { title: 'Language', description: 'Choose your language' },
-    { title: 'Storage', description: 'Where your data lives' },
-    { title: 'Appearance', description: 'Make it feel like yours' },
-    { title: 'Modules', description: 'Pick the features you need' },
-    { title: 'Dashboard', description: 'Configure your widgets' },
-    { title: 'Quick Setup', description: 'Import or start fresh' },
-    { title: 'All Set', description: 'Launch your workspace' },
-  ],
-  introParagraph: "Life OS brings your tasks, habits, notes, finances and goals into one calm, private workspace. Let's make it yours — it only takes a minute.",
-  nameLabel: 'What should we call you?',
-  namePlaceholder: 'Your name',
-  nameHelp: 'Used to personalize your experience. You can change it anytime.',
-  featureChips: { tasks: 'Tasks', habits: 'Habits', journal: 'Journal', finance: 'Finance', goals: 'Goals' },
-  storageParagraph: 'Life OS stores everything locally with SQLite — zero configuration, fully private, and yours to export anytime.',
-  recommended: 'Recommended',
-  storageSubtitle: 'Local-first, privacy-focused storage',
-  storageFeatures: ['Zero configuration', 'Stays on your device', 'Fast & lightweight', 'Export anytime'],
-  theme: 'Theme',
-  accentColor: 'Accent color',
-  fontSize: 'Font size',
-  themeLight: 'Light',
-  themeDark: 'Dark',
-  themeBlack: 'Black',
-  themeSystem: 'System',
-  fontSmall: 'Small',
-  fontMedium: 'Medium',
-  fontLarge: 'Large',
-  modulesIntro: 'Choose the modules you want. Everything can be toggled later in Settings.',
-  all: 'All',
-  none: 'None',
-  required: 'Required',
-  categories: { Overview: 'Overview', Productivity: 'Productivity', Wellness: 'Wellness', Growth: 'Growth' } as Record<string, string>,
-  modules: {
-    dashboard: { label: 'Dashboard', desc: 'Overview of your life at a glance' },
-    tasks: { label: 'Tasks', desc: 'Manage and track your tasks' },
-    notes: { label: 'Notes', desc: 'Capture ideas and thoughts' },
-    calendar: { label: 'Calendar', desc: 'Schedule and plan events' },
-    time: { label: 'Time Tracker', desc: 'Track time and Pomodoro' },
-    habits: { label: 'Habits', desc: 'Build and maintain habits' },
-    journal: { label: 'Journal', desc: 'Reflect on your day' },
-    goals: { label: 'Goals', desc: 'Set and achieve your goals' },
-    learning: { label: 'Learning', desc: 'Courses and resources' },
-    finance: { label: 'Finance', desc: 'Budget and transactions' },
-  } as Record<string, { label: string; desc: string }>,
-  widgetsIntro: 'Pick the widgets for your dashboard. Rearrange them anytime later.',
-  widgets: {
-    'quick-stats': { label: 'Quick Stats', desc: 'Key metrics at a glance' },
-    quote: { label: 'Motivational Quote', desc: 'Daily inspiration and motivation' },
-    'weekly-activity': { label: 'Weekly Activity Chart', desc: 'Visual weekly progress overview' },
-    'smart-insights': { label: 'Smart Insights', desc: 'AI-powered productivity tips' },
-    'daily-planner': { label: 'Daily Planner', desc: 'Plan your day with timeline' },
-    'mood-tracker': { label: 'Mood Tracker', desc: 'Track and visualize your mood' },
-    'activity-feed': { label: 'Activity Feed', desc: 'Recent cross-module activity' },
-  } as Record<string, { label: string; desc: string }>,
-  quickIntro: 'Start with a clean slate, or bring your data in from a previous backup.',
-  startFresh: 'Start fresh',
-  startFreshDesc: 'Begin with sample data to explore',
-  importBackup: 'Import backup',
-  importBackupDesc: 'Restore from a Life OS export',
-  importDrop: 'Click to select or drop your .json backup',
-  importDropSub: 'Tasks, notes, habits, journal, finance, goals & learning',
-  freshNote: "We'll set up Life OS with a little sample data so you can find your way around. Modify or delete it whenever you like.",
-  allSetHeading: "You're all set",
-  allSetSub: 'Review your choices and launch when ready.',
-  sName: 'Name',
-  sLanguage: 'Language',
-  sStorage: 'Storage',
-  sTheme: 'Theme',
-  sAccent: 'Accent',
-  sModules: 'Modules',
-  notSet: 'Not set',
-  modulesEnabledSuffix: 'enabled',
-  enabledModulesLabel: 'Enabled modules',
-  skipSetup: 'Skip setup',
-  back: 'Back',
-  continue: 'Continue',
-  launch: 'Launch Life OS',
-  settingUp: 'Setting up…',
-}
-
-type WizardStrings = typeof wizardEn
-
-const wizardTr: WizardStrings = {
-  brandLine1: 'Hoş geldiniz.',
-  brandLine2: 'Çalışma alanınızı kuralım.',
-  brandSub: 'Life OS’u kendinize ait hissettirecek birkaç hızlı seçim.',
-  stepOf: 'Adım {n} / {total}',
-  steps: [
-    { title: 'Hoş geldiniz', description: 'Life OS ile başlayın' },
-    { title: 'Dil', description: 'Dilinizi seçin' },
-    { title: 'Depolama', description: 'Verileriniz nerede saklanır' },
-    { title: 'Görünüm', description: 'Size ait hissettirin' },
-    { title: 'Modüller', description: 'İhtiyacınız olan özellikleri seçin' },
-    { title: 'Panel', description: 'Widget’larınızı yapılandırın' },
-    { title: 'Hızlı Kurulum', description: 'İçe aktarın veya sıfırdan başlayın' },
-    { title: 'Hazır', description: 'Çalışma alanınızı başlatın' },
-  ],
-  introParagraph: 'Life OS; görevlerinizi, alışkanlıklarınızı, notlarınızı, finansınızı ve hedeflerinizi tek bir sakin ve özel çalışma alanında toplar. Hadi onu sizinki yapalım — yalnızca bir dakika sürer.',
-  nameLabel: 'Size nasıl hitap edelim?',
-  namePlaceholder: 'Adınız',
-  nameHelp: 'Deneyiminizi kişiselleştirmek için kullanılır. İstediğiniz zaman değiştirebilirsiniz.',
-  featureChips: { tasks: 'Görevler', habits: 'Alışkanlıklar', journal: 'Günlük', finance: 'Finans', goals: 'Hedefler' },
-  storageParagraph: 'Life OS her şeyi SQLite ile yerel olarak saklar — sıfır yapılandırma, tamamen özel ve istediğiniz zaman dışa aktarılabilir.',
-  recommended: 'Önerilen',
-  storageSubtitle: 'Yerel öncelikli, gizlilik odaklı depolama',
-  storageFeatures: ['Sıfır yapılandırma', 'Cihazınızda kalır', 'Hızlı ve hafif', 'İstediğinizde dışa aktarın'],
-  theme: 'Tema',
-  accentColor: 'Vurgu rengi',
-  fontSize: 'Yazı boyutu',
-  themeLight: 'Açık',
-  themeDark: 'Koyu',
-  themeBlack: 'Siyah',
-  themeSystem: 'Sistem',
-  fontSmall: 'Küçük',
-  fontMedium: 'Orta',
-  fontLarge: 'Büyük',
-  modulesIntro: 'İstediğiniz modülleri seçin. Her şey daha sonra Ayarlar’dan açılıp kapatılabilir.',
-  all: 'Tümü',
-  none: 'Hiçbiri',
-  required: 'Gerekli',
-  categories: { Overview: 'Genel Bakış', Productivity: 'Üretkenlik', Wellness: 'Sağlık', Growth: 'Gelişim' },
-  modules: {
-    dashboard: { label: 'Panel', desc: 'Hayatınıza bir bakışta genel bakış' },
-    tasks: { label: 'Görevler', desc: 'Görevlerinizi yönetin ve takip edin' },
-    notes: { label: 'Notlar', desc: 'Fikirleri ve düşünceleri yakalayın' },
-    calendar: { label: 'Takvim', desc: 'Etkinlikleri planlayın ve düzenleyin' },
-    time: { label: 'Zaman Takibi', desc: 'Zaman ve Pomodoro takibi' },
-    habits: { label: 'Alışkanlıklar', desc: 'Alışkanlıklar oluşturun ve sürdürün' },
-    journal: { label: 'Günlük', desc: 'Gününüzü değerlendirin' },
-    goals: { label: 'Hedefler', desc: 'Hedefler belirleyin ve ulaşın' },
-    learning: { label: 'Öğrenme', desc: 'Kurslar ve kaynaklar' },
-    finance: { label: 'Finans', desc: 'Bütçe ve işlemler' },
-  },
-  widgetsIntro: 'Paneliniz için widget’ları seçin. İstediğiniz zaman yeniden düzenleyin.',
-  widgets: {
-    'quick-stats': { label: 'Hızlı İstatistikler', desc: 'Bir bakışta önemli metrikler' },
-    quote: { label: 'Motivasyon Sözü', desc: 'Günlük ilham ve motivasyon' },
-    'weekly-activity': { label: 'Haftalık Etkinlik Grafiği', desc: 'Görsel haftalık ilerleme özeti' },
-    'smart-insights': { label: 'Akıllı İçgörüler', desc: 'Yapay zekâ destekli üretkenlik ipuçları' },
-    'daily-planner': { label: 'Günlük Planlayıcı', desc: 'Gününüzü zaman çizelgesiyle planlayın' },
-    'mood-tracker': { label: 'Ruh Hâli Takibi', desc: 'Ruh hâlinizi takip edin ve görselleştirin' },
-    'activity-feed': { label: 'Etkinlik Akışı', desc: 'Modüller arası son etkinlikler' },
-  },
-  quickIntro: 'Temiz bir sayfayla başlayın ya da önceki bir yedekten verilerinizi getirin.',
-  startFresh: 'Sıfırdan başla',
-  startFreshDesc: 'Keşfetmek için örnek verilerle başlayın',
-  importBackup: 'Yedeği içe aktar',
-  importBackupDesc: 'Bir Life OS dışa aktarımından geri yükleyin',
-  importDrop: '.json yedeğinizi seçmek için tıklayın veya buraya bırakın',
-  importDropSub: 'Görevler, notlar, alışkanlıklar, günlük, finans, hedefler ve öğrenme',
-  freshNote: 'Yolunuzu bulabilmeniz için Life OS’u biraz örnek veriyle kuracağız. İstediğiniz zaman değiştirin veya silin.',
-  allSetHeading: 'Her şey hazır',
-  allSetSub: 'Seçimlerinizi gözden geçirin ve hazır olduğunuzda başlatın.',
-  sName: 'Ad',
-  sLanguage: 'Dil',
-  sStorage: 'Depolama',
-  sTheme: 'Tema',
-  sAccent: 'Vurgu',
-  sModules: 'Modüller',
-  notSet: 'Belirtilmedi',
-  modulesEnabledSuffix: 'etkin',
-  enabledModulesLabel: 'Etkin modüller',
-  skipSetup: 'Kurulumu atla',
-  back: 'Geri',
-  continue: 'Devam',
-  launch: 'Life OS’u başlat',
-  settingUp: 'Kuruluyor…',
-}
-
-const wizardCopy: Record<string, WizardStrings> = {
-  en: wizardEn,
-  tr: wizardTr,
-}
-
 // ─── Main Wizard Component ───────────────────────────────────────────
 
 export function SetupWizard() {
   const [step, setStep] = useState(0)
   const [direction, setDirection] = useState(1)
   const [name, setName] = useState('')
-  const [selectedLanguage, setSelectedLanguage] = useState('en')
   const [selectedMode, setSelectedMode] = useState<AppearanceModeId>('black')
   const [selectedAccent, setSelectedAccent] = useState('emerald')
   const accentHex = accentColors.find(a => a.id === selectedAccent)?.color ?? '#10b981'
@@ -348,10 +163,91 @@ export function SetupWizard() {
     setThemeVariant,
     setEnabledModules: setStoreEnabledModules,
   } = useAppStore()
+  const language = useAppStore(s => s.language)
   const { setTheme: setNextTheme } = useTheme()
+  const { t, tArray } = useTranslation()
 
-  // Localized copy for the current language (falls back to English)
-  const w = wizardCopy[selectedLanguage] ?? wizardEn
+  // Localized copy sourced from the global i18n system so language switching
+  // in the wizard immediately reflects in every string without a page reload.
+  const w = {
+    brandLine1: t('setup.brandLine1'),
+    brandLine2: t('setup.brandLine2'),
+    brandSub: t('setup.brandSub'),
+    stepOf: t('setup.stepOf'),
+    steps: Array.from({ length: 8 }, (_, i) => ({
+      title: t(`setup.steps.${i}.title`),
+      description: t(`setup.steps.${i}.description`),
+    })),
+    introParagraph: t('setup.introParagraph'),
+    nameLabel: t('setup.nameLabel'),
+    namePlaceholder: t('setup.namePlaceholder'),
+    nameHelp: t('setup.nameHelp'),
+    featureChips: {
+      tasks: t('setup.featureChips.tasks'),
+      habits: t('setup.featureChips.habits'),
+      journal: t('setup.featureChips.journal'),
+      finance: t('setup.featureChips.finance'),
+      goals: t('setup.featureChips.goals'),
+    },
+    storageParagraph: t('setup.storageParagraph'),
+    recommended: t('setup.recommended'),
+    storageSubtitle: t('setup.storageSubtitle'),
+    storageFeatures: tArray('setup.storageFeatures'),
+    theme: t('setup.theme'),
+    accentColor: t('setup.accentColor'),
+    fontSize: t('setup.fontSize'),
+    themeLight: t('setup.themeLight'),
+    themeDark: t('setup.themeDark'),
+    themeBlack: t('setup.themeBlack'),
+    themeSystem: t('setup.themeSystem'),
+    fontSmall: t('setup.fontSmall'),
+    fontMedium: t('setup.fontMedium'),
+    fontLarge: t('setup.fontLarge'),
+    modulesIntro: t('setup.modulesIntro'),
+    all: t('setup.all'),
+    none: t('setup.none'),
+    required: t('setup.required'),
+    categories: Object.fromEntries(
+      ['Overview', 'Productivity', 'Wellness', 'Growth'].map(n => [n, t(`setup.categories.${n}`)])
+    ) as Record<string, string>,
+    modules: Object.fromEntries(
+      ['dashboard', 'tasks', 'notes', 'calendar', 'time', 'habits', 'journal', 'goals', 'learning', 'finance'].map(id => [
+        id,
+        { label: t(`setup.modules.${id}.label`), desc: t(`setup.modules.${id}.desc`) },
+      ])
+    ) as Record<string, { label: string; desc: string }>,
+    widgetsIntro: t('setup.widgetsIntro'),
+    widgets: Object.fromEntries(
+      ['quick-stats', 'quote', 'weekly-activity', 'smart-insights', 'daily-planner', 'mood-tracker', 'activity-feed'].map(id => [
+        id,
+        { label: t(`setup.widgets.${id}.label`), desc: t(`setup.widgets.${id}.desc`) },
+      ])
+    ) as Record<string, { label: string; desc: string }>,
+    quickIntro: t('setup.quickIntro'),
+    startFresh: t('setup.startFresh'),
+    startFreshDesc: t('setup.startFreshDesc'),
+    importBackup: t('setup.importBackup'),
+    importBackupDesc: t('setup.importBackupDesc'),
+    importDrop: t('setup.importDrop'),
+    importDropSub: t('setup.importDropSub'),
+    freshNote: t('setup.freshNote'),
+    allSetHeading: t('setup.allSetHeading'),
+    allSetSub: t('setup.allSetSub'),
+    sName: t('setup.sName'),
+    sLanguage: t('setup.sLanguage'),
+    sStorage: t('setup.sStorage'),
+    sTheme: t('setup.sTheme'),
+    sAccent: t('setup.sAccent'),
+    sModules: t('setup.sModules'),
+    notSet: t('setup.notSet'),
+    modulesEnabledSuffix: t('setup.modulesEnabledSuffix'),
+    enabledModulesLabel: t('setup.enabledModulesLabel'),
+    skipSetup: t('setup.skipSetup'),
+    back: t('setup.back'),
+    continue: t('setup.continue'),
+    launch: t('setup.launch'),
+    settingUp: t('setup.settingUp'),
+  }
 
   const currentMode = appearanceModes.find(m => m.id === selectedMode) ?? appearanceModes[2]
   const selectedTheme = currentMode.theme
@@ -364,9 +260,8 @@ export function SetupWizard() {
     const primary = navLang.split('-')[0].toLowerCase()
     const matched = languages.find(l => l.code === primary)
     const code = matched ? matched.code : 'en'
-    setSelectedLanguage(code)
     setLanguage(code)
-  }, [])
+  }, [setLanguage])
 
   const progressPercent = ((step + 1) / TOTAL_STEPS) * 100
 
@@ -424,7 +319,7 @@ export function SetupWizard() {
 
   const handleLaunch = async () => {
     setLaunching(true)
-    setLanguage(selectedLanguage)
+    // language is already reactive (set by the store) — no need to re-set it
     setAccentColor(selectedAccent)
     setFontSize(selectedFontSize)
     setTheme(selectedTheme)
@@ -440,7 +335,7 @@ export function SetupWizard() {
         body: JSON.stringify({
           name: name.trim(),
           theme: selectedTheme,
-          locale: selectedLanguage,
+          locale: language,
         }),
       }).catch(() => {})
     }
@@ -497,7 +392,7 @@ export function SetupWizard() {
   const renderStep1 = () => (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
       {languages.map((lang) => {
-        const active = selectedLanguage === lang.code
+        const active = language === lang.code
         return (
           <button
             key={lang.code}
@@ -506,7 +401,7 @@ export function SetupWizard() {
               active ? 'border-transparent' : 'border-border hover:bg-accent/40'
             )}
             style={sel(active)}
-            onClick={() => { setSelectedLanguage(lang.code); setLanguage(lang.code) }}
+            onClick={() => setLanguage(lang.code)}
           >
             <span className="text-2xl shrink-0">{lang.flag}</span>
             <div className="min-w-0">
@@ -788,8 +683,8 @@ export function SetupWizard() {
 
   // Step 7: All set
   const renderStep7 = () => {
-    const langLabel = languages.find(l => l.code === selectedLanguage)?.label ?? 'English'
-    const langFlag = languages.find(l => l.code === selectedLanguage)?.flag ?? '🇬🇧'
+    const langLabel = languages.find(l => l.code === language)?.label ?? 'English'
+    const langFlag = languages.find(l => l.code === language)?.flag ?? '🇬🇧'
     const themeLabel =
       selectedMode === 'light' ? w.themeLight : selectedMode === 'dark' ? w.themeDark : selectedMode === 'black' ? w.themeBlack : w.themeSystem
     const accentLabel = accentColors.find(a => a.id === selectedAccent)?.label ?? 'Emerald'

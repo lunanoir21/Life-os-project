@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-echo "→ Syncing database schema..."
-node node_modules/prisma/build/index.js db push --skip-generate
+echo "→ Running database migrations..."
+node node_modules/prisma/build/index.js migrate deploy
 
 echo "→ Starting Life OS backend on port 8080..."
 DATABASE_URL="${DATABASE_URL:-file:/app/data/prod.db}" \

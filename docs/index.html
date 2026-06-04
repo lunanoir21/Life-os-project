@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Life OS — Kişisel İşletim Sisteminiz</title>
+  <meta name="description" content="Güzel, yerel öncelikli kişisel hayat yönetim sistemi. 11 güçlü modül. Açık kaynak. Gizlilik odaklı."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --black:#000;--bg:#050508;--bg1:#0c0c10;--bg2:#111115;--bg3:#18181d;
+      --border:rgba(255,255,255,.06);--border-hover:rgba(255,255,255,.12);
+      --green:#00e87a;--green-dim:rgba(0,232,122,.08);--green-glow:rgba(0,232,122,.25);
+      --violet:#7c3aed;--amber:#fbbf24;--blue:#60a5fa;--pink:#f472b6;--red:#f87171;
+      --white:#fff;--gray:#888;--gray2:#555;--text:#f0f0f0;
+      --radius:14px;--radius-lg:20px;
+    }
+    html{scroll-behavior:smooth;font-size:16px}
+    body{
+      font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(--text);
+      line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;
+    }
+    a{color:inherit;text-decoration:none}img{display:block;max-width:100%}
+
+    body::before{
+      content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.03'/%3E%3C/svg%3E");
+      opacity:.4;
+    }
+
+    #scroll-progress{position:fixed;top:0;left:0;height:3px;z-index:9999;background:linear-gradient(90deg,var(--green),var(--violet));width:0;transition:width .1s linear;box-shadow:0 0 12px var(--green-glow)}
+    #cursor-glow{position:fixed;width:500px;height:500px;border-radius:50%;pointer-events:none;z-index:1;background:radial-gradient(circle,rgba(0,232,122,.07) 0%,transparent 70%);transform:translate(-50%,-50%);transition:opacity .3s}
+    #particles{position:fixed;inset:0;z-index:0;pointer-events:none}
+    .particle{position:absolute;border-radius:50%;background:var(--green);opacity:0;animation:float-up linear infinite}
+    @keyframes float-up{0%{opacity:0;transform:translateY(0) scale(1)}10%{opacity:var(--p-opacity,.3)}90%{opacity:var(--p-opacity,.3)}100%{opacity:0;transform:translateY(calc(-100vh - 50px)) scale(.3)}}
+
+    /* NAV */
+    nav{position:fixed;top:0;left:0;right:0;z-index:900;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;background:rgba(0,0,0,.6);backdrop-filter:blur(24px) saturate(180%);border-bottom:1px solid var(--border);transition:background .3s}
+    nav.scrolled{background:rgba(0,0,0,.9);border-bottom-color:var(--border-hover)}
+    .nav-left{display:flex;align-items:center;gap:.6rem;font-weight:800;font-size:1.05rem;letter-spacing:-.02em}
+    .nav-left .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 12px var(--green);animation:pulse-dot 2s ease-in-out infinite}
+    @keyframes pulse-dot{0%,100%{box-shadow:0 0 8px var(--green)}50%{box-shadow:0 0 25px var(--green),0 0 50px rgba(0,232,122,.3)}}
+    .nav-center{display:flex;gap:2rem}
+    .nav-center a{font-size:.85rem;font-weight:500;color:var(--gray);transition:color .2s;position:relative}
+    .nav-center a::after{content:'';position:absolute;bottom:-4px;left:0;width:0;height:2px;background:var(--green);transition:width .3s;border-radius:2px}
+    .nav-center a:hover{color:var(--white)}
+    .nav-center a:hover::after{width:100%}
+    .nav-right{display:flex;align-items:center;gap:.75rem}
+    
+    /* Language Switcher */
+    .lang-switch{display:flex;background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+    .lang-btn{padding:.35rem .7rem;font-size:.75rem;font-weight:700;color:var(--gray);cursor:pointer;transition:all .2s;border:none;background:transparent}
+    .lang-btn.active{background:var(--green);color:#000}
+    .lang-btn:hover:not(.active){color:var(--white)}
+
+    .nav-gh{display:inline-flex;align-items:center;gap:.4rem;padding:.4rem 1rem;border-radius:8px;background:var(--bg2);border:1px solid var(--border);font-size:.8rem;font-weight:600;transition:all .2s}
+    .nav-gh:hover{border-color:var(--border-hover);background:var(--bg3);transform:translateY(-1px)}
+    .nav-star{display:inline-flex;align-items:center;gap:.4rem;padding:.4rem 1rem;border-radius:8px;background:var(--green);color:#000;font-size:.8rem;font-weight:700;transition:all .2s;position:relative;overflow:hidden}
+    .nav-star::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);transform:translateX(-100%);transition:transform .6s}
+    .nav-star:hover::before{transform:translateX(100%)}
+    .nav-star:hover{transform:translateY(-1px);box-shadow:0 4px 20px var(--green-glow)}
+    .nav-kbd{display:inline-flex;align-items:center;gap:.4rem;padding:.4rem .8rem;border-radius:8px;background:var(--bg2);border:1px solid var(--border);font-size:.8rem;font-weight:600;color:var(--gray);cursor:pointer;transition:all .2s}
+    .nav-kbd:hover{border-color:var(--green);color:var(--green)}
+    .nav-kbd kbd{font-family:'JetBrains Mono',monospace;font-size:.65rem;background:var(--bg3);padding:1px 5px;border-radius:4px;border:1px solid var(--border)}
+
+    .hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:4px;z-index:901}
+    .hamburger span{width:22px;height:2px;background:var(--text);border-radius:2px;transition:all .3s}
+    .hamburger.open span:nth-child(1){transform:rotate(45deg) translate(5px,5px)}
+    .hamburger.open span:nth-child(2){opacity:0}
+    .hamburger.open span:nth-child(3){transform:rotate(-45deg) translate(5px,-5px)}
+    .mobile-menu{position:fixed;inset:0;z-index:899;background:rgba(0,0,0,.97);backdrop-filter:blur(30px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2rem;opacity:0;pointer-events:none;transition:opacity .3s}
+    .mobile-menu.open{opacity:1;pointer-events:all}
+    .mobile-menu a{font-size:1.5rem;font-weight:700;color:var(--gray);transition:color .2s}
+    .mobile-menu a:hover{color:var(--green)}
+
+    /* HERO */
+    .hero{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:8rem 2rem 6rem;overflow:hidden}
+    .hero::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);background-size:64px 64px;mask-image:radial-gradient(ellipse 80% 60% at 50% 40%,black 30%,transparent 100%);animation:grid-pulse 8s ease-in-out infinite}
+    @keyframes grid-pulse{0%,100%{opacity:.5}50%{opacity:1}}
+    .hero-orb{position:absolute;top:-120px;left:50%;transform:translateX(-50%);width:800px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(0,232,122,.12) 0%,rgba(124,58,237,.06) 40%,transparent 70%);pointer-events:none;animation:orb-breathe 6s ease-in-out infinite}
+    @keyframes orb-breathe{0%,100%{transform:translateX(-50%) scale(1);opacity:1}50%{transform:translateX(-50%) scale(1.15);opacity:.7}}
+    .hero-content{position:relative;z-index:2;max-width:880px;margin:0 auto}
+    .hero-pill{display:inline-flex;align-items:center;gap:.5rem;padding:.4rem 1rem;border-radius:999px;background:var(--green-dim);border:1px solid rgba(0,232,122,.2);font-size:.72rem;font-weight:700;color:var(--green);letter-spacing:.1em;text-transform:uppercase;margin-bottom:2rem;animation:pill-glow 3s ease-in-out infinite}
+    @keyframes pill-glow{0%,100%{box-shadow:0 0 0 0 rgba(0,232,122,0)}50%{box-shadow:0 0 20px rgba(0,232,122,.2)}}
+    .hero-pill-dot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:blink 2s infinite}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+    h1{font-size:clamp(3rem,8vw,6.5rem);font-weight:900;line-height:.97;letter-spacing:-.04em;margin-bottom:1.5rem}
+    h1 em{font-style:normal;color:var(--green);position:relative}
+    h1 em::after{content:'';position:absolute;bottom:.05em;left:0;right:0;height:3px;background:var(--green);border-radius:2px;opacity:.4;animation:underline-shimmer 3s ease-in-out infinite}
+    @keyframes underline-shimmer{0%,100%{opacity:.2;transform:scaleX(.8)}50%{opacity:.6;transform:scaleX(1)}}
+    h1 .dim{color:rgba(255,255,255,.2)}
+    .hero-desc{font-size:clamp(1rem,2vw,1.2rem);color:var(--gray);max-width:560px;margin:0 auto 2.5rem;font-weight:400;line-height:1.7;min-height:3.4em}
+    .hero-ctas{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-bottom:4rem}
+    .cta-primary{display:inline-flex;align-items:center;gap:.55rem;padding:.85rem 2rem;border-radius:10px;background:var(--green);color:#000;font-weight:800;font-size:.95rem;transition:all .25s;box-shadow:0 0 30px var(--green-glow);position:relative;overflow:hidden}
+    .cta-primary::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);transform:translateX(-100%);transition:transform .5s}
+    .cta-primary:hover::before{transform:translateX(100%)}
+    .cta-primary:hover{transform:translateY(-3px);box-shadow:0 0 60px var(--green-glow)}
+    .cta-secondary{display:inline-flex;align-items:center;gap:.55rem;padding:.85rem 2rem;border-radius:10px;background:transparent;color:var(--text);font-weight:600;font-size:.95rem;border:1px solid var(--border);transition:all .25s}
+    .cta-secondary:hover{border-color:var(--green);color:var(--green);background:var(--green-dim);transform:translateY(-2px)}
+    .stats-bar{display:flex;border:1px solid var(--border);border-radius:14px;background:var(--bg1);overflow:hidden;max-width:520px;margin:0 auto;box-shadow:0 0 40px rgba(0,0,0,.4)}
+    .stat-item{flex:1;padding:1.2rem 1rem;text-align:center;border-right:1px solid var(--border);position:relative;cursor:default}
+    .stat-item:last-child{border-right:none}
+    .stat-item::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,232,122,.05),transparent);opacity:0;transition:opacity .3s}
+    .stat-item:hover::before{opacity:1}
+    .stat-val{font-size:1.8rem;font-weight:900;color:var(--green);line-height:1;font-variant-numeric:tabular-nums}
+    .stat-lbl{font-size:.65rem;color:var(--gray);text-transform:uppercase;letter-spacing:.1em;margin-top:.3rem}
+
+    /* SCREENSHOTS */
+    .mockup-section{padding:0 1.5rem 6rem;max-width:1100px;margin:0 auto}
+    .browser-wrap{perspective:1400px}
+    .browser{border-radius:var(--radius-lg);border:1px solid var(--border);background:var(--bg1);overflow:hidden;box-shadow:0 0 0 1px rgba(0,232,122,.05),0 40px 100px rgba(0,0,0,.8),0 0 120px rgba(0,232,122,.03);transition:transform .1s ease-out,box-shadow .3s;transform-style:preserve-3d}
+    .browser-bar{display:flex;align-items:center;gap:.5rem;padding:.75rem 1.25rem;background:var(--bg2);border-bottom:1px solid var(--border)}
+    .b-dot{width:10px;height:10px;border-radius:50%;transition:transform .2s;cursor:pointer}.b-dot:hover{transform:scale(1.3)}.b-dot.r{background:#ff5f57}.b-dot.y{background:#febc2e}.b-dot.g{background:var(--green)}
+    .browser-url{flex:1;margin:0 .75rem;padding:.3rem .85rem;border-radius:6px;background:var(--bg3);border:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--gray2);text-align:center}
+    .browser-url .url-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--green);margin-right:6px;animation:blink 1.5s infinite}
+    .screen-tabs{display:flex;gap:.5rem;justify-content:center;margin-bottom:1.5rem;flex-wrap:wrap}
+    .stab{padding:.45rem 1.1rem;border-radius:8px;background:var(--bg1);border:1px solid var(--border);font-size:.8rem;font-weight:600;color:var(--gray);cursor:pointer;transition:all .2s;font-family:'Inter',sans-serif}
+    .stab:hover{border-color:var(--border-hover);color:var(--text);transform:translateY(-1px)}
+    .stab.active{background:var(--green-dim);border-color:rgba(0,232,122,.3);color:var(--green)}
+    .screen-gallery{position:relative;line-height:0;background:#000;min-height:200px}
+    .screen-img{width:100%;display:block;opacity:0;position:absolute;top:0;left:0;transition:opacity .5s ease;pointer-events:none;user-select:none}
+    .screen-img.active{position:relative;opacity:1;pointer-events:auto}
+
+    /* SECTIONS */
+    section{padding:5rem 2rem;position:relative}
+    .sec-label{text-align:center;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--green);margin-bottom:.85rem}
+    h2{text-align:center;font-size:clamp(1.9rem,4.5vw,3rem);font-weight:900;line-height:1.05;letter-spacing:-.03em;margin-bottom:.65rem}
+    .sec-sub{text-align:center;color:var(--gray);font-size:1rem;max-width:500px;margin:0 auto 3.5rem;line-height:1.6}
+
+    /* MODULES */
+    .modules-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1px;max-width:1050px;margin:0 auto;border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
+    .mod-card{background:var(--bg1);padding:1.75rem;border-right:1px solid var(--border);border-bottom:1px solid var(--border);transition:all .3s cubic-bezier(.4,0,.2,1);cursor:default;position:relative;overflow:hidden}
+    .mod-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--green),transparent);transform:scaleX(0);transition:transform .4s}
+    .mod-card::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(0,232,122,.08),transparent 60%);opacity:0;transition:opacity .3s;pointer-events:none}
+    .mod-card:hover{background:var(--bg2);transform:translateY(-2px)}.mod-card:hover::before{transform:scaleX(1)}.mod-card:hover::after{opacity:1}
+    .mod-ico{margin-bottom:.9rem;display:inline-flex;align-items:center;justify-content:center;width:2.2rem;height:2.2rem;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid var(--border);transition:all .3s;color:var(--gray)}
+    .mod-ico svg{width:1.1rem;height:1.1rem;stroke-width:1.75}
+    .mod-card:hover .mod-ico{transform:scale(1.1) rotate(-5deg);background:var(--green-dim);border-color:rgba(0,232,122,.2);color:var(--green)}
+    .stab svg{width:.8rem;height:.8rem;flex-shrink:0;stroke-width:2}
+    .mi svg{width:.85rem;height:.85rem;stroke-width:2;color:var(--green)}
+    .tech-logo{width:20px;height:20px;object-fit:contain;flex-shrink:0;border-radius:3px}
+    .tech-pill svg{width:18px;height:18px;stroke-width:1.75;flex-shrink:0;color:var(--gray)}
+    .mod-title{font-weight:700;font-size:.95rem;margin-bottom:.35rem;letter-spacing:-.01em}
+    .mod-desc{font-size:.8rem;color:var(--gray);line-height:1.6}
+    .mod-tags{display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.9rem}
+    .mod-tag{font-size:.62rem;font-weight:700;padding:.2rem .5rem;border-radius:5px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--gray);letter-spacing:.04em;text-transform:uppercase;transition:all .2s}
+    .mod-card:hover .mod-tag{border-color:rgba(0,232,122,.15);color:var(--green);background:var(--green-dim)}
+
+    /* MARQUEE */
+    .marquee-section{padding:2.5rem 0;background:var(--bg1);border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow:hidden}
+    .marquee-track{display:flex;gap:0;animation:scroll 30s linear infinite;width:max-content}.marquee-track:hover{animation-play-state:paused}
+    @keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+    .marquee-item{display:inline-flex;align-items:center;gap:.6rem;padding:.55rem 1.5rem;border-right:1px solid var(--border);font-size:.78rem;font-weight:600;color:var(--gray);white-space:nowrap;transition:color .2s}
+    .marquee-item:hover{color:var(--white)}.marquee-item .mi{color:var(--green)}
+
+    /* COMPARISON */
+    .comparison{max-width:900px;margin:0 auto}
+    .comp-table{width:100%;border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;background:var(--bg1)}
+    .comp-header{display:grid;grid-template-columns:1.5fr 1fr 1fr;padding:1rem 1.5rem;background:var(--bg2);border-bottom:1px solid var(--border);font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray)}
+    .comp-row{display:grid;grid-template-columns:1.5fr 1fr 1fr;padding:.85rem 1.5rem;border-bottom:1px solid var(--border);font-size:.85rem;align-items:center;transition:background .2s}
+    .comp-row:last-child{border-bottom:none}.comp-row:hover{background:var(--bg2)}
+    .comp-row .feat{font-weight:600}
+    .comp-check{text-align:center;color:var(--green);font-size:1.1rem;font-weight:bold}
+    .comp-cross{text-align:center;color:var(--red);font-size:.9rem;opacity:.5}
+    .comp-col-h{text-align:center}.comp-col-h.life{color:var(--green)}
+
+    /* FAQ */
+    .faq-container{max-width:700px;margin:0 auto;display:flex;flex-direction:column;gap:.5rem}
+    .faq-item{background:var(--bg1);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:border-color .3s, background .3s}
+    .faq-item:hover,.faq-item.open{border-color:rgba(0,232,122,.15);background:var(--bg2)}
+    .faq-q{display:flex;justify-content:space-between;align-items:center;padding:1.2rem 1.5rem;font-weight:700;font-size:.95rem;cursor:pointer;user-select:none;transition:color .2s}
+    .faq-item.open .faq-q{color:var(--green)}
+    .faq-icon{width:24px;height:24px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:1rem;color:var(--gray);transition:all .3s;border:1px solid var(--border);flex-shrink:0}
+    .faq-item.open .faq-icon{background:var(--green);color:#000;border-color:var(--green);transform:rotate(45deg)}
+    .faq-a{max-height:0;overflow:hidden;transition:max-height .4s ease, padding .4s ease}
+    .faq-a-inner{padding:0 1.5rem 1.2rem;font-size:.88rem;color:var(--gray);line-height:1.7}
+
+    /* TECH */
+    .tech-grid{display:flex;gap:.75rem;flex-wrap:wrap;justify-content:center;max-width:900px;margin:0 auto}
+    .tech-pill{display:inline-flex;align-items:center;gap:.55rem;padding:.55rem 1.1rem;border-radius:10px;background:var(--bg1);border:1px solid var(--border);font-size:.82rem;font-weight:600;transition:all .25s;cursor:default}
+    .tech-pill:hover{border-color:var(--green);background:var(--green-dim);transform:translateY(-3px);box-shadow:0 8px 25px rgba(0,0,0,.3)}
+    .tech-badge{width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:900;transition:transform .3s}
+    .tech-pill:hover .tech-badge{transform:rotate(10deg) scale(1.1)}
+
+    /* INSTALL */
+    .install-wrap{max-width:680px;margin:0 auto}
+    .install-steps{display:flex;flex-direction:column;gap:1.25rem}
+    .install-step{display:flex;gap:1.1rem;align-items:flex-start}
+    .step-num{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:.1rem;background:var(--green);color:#000;font-weight:800;font-size:.72rem;box-shadow:0 0 15px var(--green-glow);transition:transform .2s}
+    .install-step:hover .step-num{transform:scale(1.15)}
+    .step-title{font-weight:700;font-size:.9rem;margin-bottom:.5rem;color:var(--white)}
+    .code-block{background:var(--bg1);border:1px solid var(--border);border-radius:10px;padding:1.1rem 1.4rem;font-family:'JetBrains Mono',monospace;font-size:.79rem;line-height:1.8;overflow-x:auto;position:relative;transition:border-color .2s}
+    .code-block:hover{border-color:rgba(0,232,122,.15)}
+    .code-copy{position:absolute;top:.6rem;right:.6rem;padding:.25rem .6rem;border-radius:6px;background:var(--bg3);border:1px solid var(--border);font-size:.65rem;font-weight:600;color:var(--gray);cursor:pointer;transition:all .2s;font-family:'Inter',sans-serif}
+    .code-copy:hover{border-color:var(--green);color:var(--green)}.code-copy.copied{background:var(--green);color:#000;border-color:var(--green)}
+    .cm{color:#555}.ck{color:var(--green)}.ca{color:#a78bfa}.cs{color:var(--amber)}
+    .docker-box{margin-top:1.75rem;padding:1.5rem;background:linear-gradient(135deg,rgba(0,232,122,.04),rgba(124,58,237,.04));border:1px solid rgba(0,232,122,.15);border-radius:var(--radius);transition:border-color .3s}
+    .docker-box:hover{border-color:rgba(0,232,122,.3)}
+    .docker-box h3{font-size:.95rem;font-weight:700;margin-bottom:.4rem;display:flex;align-items:center;gap:.5rem}
+    .docker-box p{font-size:.8rem;color:var(--gray);margin-bottom:.85rem;line-height:1.6}
+
+    /* CTA */
+    .cta-section{text-align:center;padding:8rem 2rem;background:radial-gradient(ellipse 70% 50% at 50% 50%,rgba(0,232,122,.06) 0%,transparent 70%)}
+    .cta-section h2{margin-bottom:.75rem}.cta-section p{color:var(--gray);margin-bottom:2.5rem;font-size:1rem;max-width:420px;margin-left:auto;margin-right:auto}
+    .cta-wrap{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+
+    /* FOOTER */
+    footer{border-top:1px solid var(--border);padding:2.5rem 2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem}
+    .footer-left{display:flex;align-items:center;gap:.5rem;font-weight:800;font-size:.88rem}
+    .footer-left .dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+    .footer-links{display:flex;gap:1.5rem;flex-wrap:wrap}.footer-links a{font-size:.78rem;color:var(--gray);transition:color .2s}.footer-links a:hover{color:var(--green)}
+    .footer-right{font-size:.75rem;color:var(--gray2)}
+
+    /* COMMAND PALETTE */
+    .cmd-overlay{position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding-top:15vh;opacity:0;pointer-events:none;transition:opacity .2s}
+    .cmd-overlay.open{opacity:1;pointer-events:all}
+    .cmd-palette{width:560px;max-width:90vw;background:var(--bg2);border:1px solid var(--border-hover);border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.8),0 0 40px rgba(0,232,122,.05);transform:scale(.96) translateY(-10px);transition:transform .2s}
+    .cmd-overlay.open .cmd-palette{transform:scale(1) translateY(0)}
+    .cmd-input-wrap{display:flex;align-items:center;gap:.75rem;padding:1rem 1.25rem;border-bottom:1px solid var(--border)}
+    .cmd-input-wrap svg{flex-shrink:0;color:var(--gray)}
+    .cmd-input{flex:1;background:none;border:none;outline:none;color:var(--text);font-size:.95rem;font-family:'Inter',sans-serif}
+    .cmd-input::placeholder{color:var(--gray2)}
+    .cmd-esc{font-family:'JetBrains Mono',monospace;font-size:.65rem;padding:2px 6px;border-radius:4px;background:var(--bg3);border:1px solid var(--border);color:var(--gray2)}
+    .cmd-list{max-height:320px;overflow-y:auto;padding:.5rem}
+    .cmd-item{display:flex;align-items:center;gap:.75rem;padding:.65rem 1rem;border-radius:8px;font-size:.85rem;cursor:pointer;transition:background .15s;color:var(--gray)}
+    .cmd-item:hover,.cmd-item.active{background:var(--green-dim);color:var(--green)}
+    .cmd-item-icon{width:20px;text-align:center}
+    .cmd-item-shortcut{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gray2)}
+
+    /* TOAST */
+    .toast-container{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;gap:.5rem}
+    .toast{display:flex;align-items:center;gap:.6rem;padding:.75rem 1.1rem;border-radius:10px;background:var(--bg2);border:1px solid var(--border);font-size:.82rem;font-weight:500;box-shadow:0 10px 30px rgba(0,0,0,.5);animation:toast-in .3s ease-out}
+    .toast.out{animation:toast-out .3s ease-in forwards}
+    @keyframes toast-in{from{opacity:0;transform:translateY(10px) scale(.95)}to{opacity:1;transform:none}}
+    @keyframes toast-out{to{opacity:0;transform:translateY(-10px) scale(.95)}}
+
+    .fade-up{opacity:0;transform:translateY(30px);transition:opacity .7s ease,transform .7s ease}
+    .fade-up.visible{opacity:1;transform:translateY(0)}
+    .stagger-1{transition-delay:.1s}.stagger-2{transition-delay:.2s}.stagger-3{transition-delay:.3s}
+
+    @media(max-width:768px){
+      .nav-center,.nav-gh,.nav-kbd{display:none}.hamburger{display:flex}
+      .screen-tabs{gap:.35rem}.stab{padding:.4rem .75rem;font-size:.75rem}
+      .comp-header,.comp-row{grid-template-columns:1.2fr 1fr 1fr;font-size:.75rem;padding:.7rem 1rem}
+    }
+    @media(max-width:540px){
+      h1{letter-spacing:-.03em}.hero-ctas{flex-direction:column;align-items:center}
+      .cta-wrap{flex-direction:column;align-items:center}footer{flex-direction:column;text-align:center}
+      .stats-bar{flex-wrap:wrap}.stat-item{min-width:50%}.modules-grid{grid-template-columns:1fr}
+    }
+    ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--black)}
+    ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px}
+    ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.18)}
+    ::selection{background:rgba(0,232,122,.25);color:#fff}
+  </style>
+</head>
+<body>
+
+<div id="scroll-progress"></div>
+<div id="cursor-glow"></div>
+<div id="particles"></div>
+
+<!-- NAV -->
+<nav id="main-nav">
+  <div class="nav-left"><div class="dot"></div>Life OS</div>
+  <div class="nav-center">
+    <a href="#modules" data-i18n="nav_modules">Modüller</a>
+    <a href="#comparison" data-i18n="nav_compare">Karşılaştır</a>
+    <a href="#faq" data-i18n="nav_faq">SSS</a>
+    <a href="#stack" data-i18n="nav_stack">Teknoloji</a>
+    <a href="#install" data-i18n="nav_install">Kurulum</a>
+  </div>
+  <div class="nav-right">
+    <div class="lang-switch">
+      <button class="lang-btn active" onclick="setLanguage('tr')">TR</button>
+      <button class="lang-btn" onclick="setLanguage('en')">EN</button>
+    </div>
+    <div class="nav-kbd" onclick="openCmd()" title="Komut Paleti">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <kbd>⌘K</kbd>
+    </div>
+    <a href="https://github.com/lunanoir21/Life-os-project" target="_blank" rel="noopener" class="nav-gh">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      GitHub
+    </a>
+    <a href="https://github.com/lunanoir21/Life-os-project" target="_blank" rel="noopener" class="nav-star"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>Star</a>
+    <div class="hamburger" onclick="toggleMobile()"><span></span><span></span><span></span></div>
+  </div>
+</nav>
+
+<div class="mobile-menu" id="mobile-menu">
+  <a href="#modules" onclick="toggleMobile()" data-i18n="nav_modules">Modüller</a>
+  <a href="#comparison" onclick="toggleMobile()" data-i18n="nav_compare">Karşılaştır</a>
+  <a href="#faq" onclick="toggleMobile()" data-i18n="nav_faq">SSS</a>
+  <a href="#stack" onclick="toggleMobile()" data-i18n="nav_stack">Teknoloji</a>
+  <a href="#install" onclick="toggleMobile()" data-i18n="nav_install">Kurulum</a>
+</div>
+
+<!-- CMD PALETTE -->
+<div class="cmd-overlay" id="cmd-overlay" onclick="if(event.target===this)closeCmd()">
+  <div class="cmd-palette">
+    <div class="cmd-input-wrap">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input class="cmd-input" id="cmd-input" placeholder="Komut yazın veya arayın..." data-i18n-placeholder="cmd_placeholder" autocomplete="off"/>
+      <span class="cmd-esc">ESC</span>
+    </div>
+    <div class="cmd-list" id="cmd-list"></div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-orb"></div>
+  <div class="hero-content">
+    <div class="hero-pill fade-up"><span class="hero-pill-dot"></span><span data-i18n="hero_pill">Açık Kaynak · Yerel Öncelikli · Gizlilik Odaklı</span></div>
+    <h1 class="fade-up stagger-1" data-i18n-html="hero_title">Kişisel<br><em>İşletim</em> <span class="dim">Sisteminiz</span></h1>
+    <p class="hero-desc fade-up stagger-2" data-i18n="hero_desc">Verileri üzerinde tam kontrol isteyenler için tasarlanmış, 11 güçlü modüle sahip güzel bir hayat yönetim sistemi.</p>
+    <div class="hero-ctas fade-up stagger-3">
+      <a href="https://github.com/lunanoir21/Life-os-project" target="_blank" rel="noopener" class="cta-primary" data-i18n="hero_cta1">Ücretsiz Başlayın →</a>
+      <a href="#modules" class="cta-secondary" data-i18n="hero_cta2">Özellikleri Keşfet ↓</a>
+    </div>
+    <div class="stats-bar fade-up stagger-4">
+      <div class="stat-item"><div class="stat-val" data-target="11" data-suffix="">0</div><div class="stat-lbl" data-i18n="stat_modules">Modüller</div></div>
+      <div class="stat-item"><div class="stat-val" data-target="5" data-suffix="">0</div><div class="stat-lbl" data-i18n="stat_langs">Diller</div></div>
+      <div class="stat-item"><div class="stat-val" data-target="10" data-suffix="+">0</div><div class="stat-lbl" data-i18n="stat_themes">Temalar</div></div>
+      <div class="stat-item"><div class="stat-val" data-target="0" data-suffix="" data-text="MIT">MIT</div><div class="stat-lbl" data-i18n="stat_license">Lisans</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- SCREENSHOTS -->
+<div class="mockup-section fade-up">
+  <div class="screen-tabs">
+    <button class="stab active" data-screen="dashboard" onclick="switchScreen('dashboard')"><i data-lucide="layout-dashboard"></i>Dashboard</button>
+    <button class="stab" data-screen="tasks" onclick="switchScreen('tasks')"><i data-lucide="check-square"></i>Tasks</button>
+    <button class="stab" data-screen="habits" onclick="switchScreen('habits')"><i data-lucide="repeat-2"></i>Habits</button>
+    <button class="stab" data-screen="journal" onclick="switchScreen('journal')"><i data-lucide="book-open"></i>Journal</button>
+    <button class="stab" data-screen="finance" onclick="switchScreen('finance')"><i data-lucide="wallet"></i>Finance</button>
+  </div>
+  <div class="browser-wrap">
+    <div class="browser" id="browser-mockup">
+      <div class="browser-bar">
+        <span class="b-dot r"></span><span class="b-dot y"></span><span class="b-dot g"></span>
+        <div class="browser-url"><span class="url-dot"></span><span id="screen-url">localhost:3000 — Life OS Dashboard</span></div>
+      </div>
+      <div class="screen-gallery">
+        <img class="screen-img active" id="screen-dashboard" src="screenshots/dashboard.jpg" alt="Life OS Dashboard" loading="eager">
+        <img class="screen-img" id="screen-tasks" src="screenshots/tasks.jpg" alt="Life OS Tasks" loading="lazy">
+        <img class="screen-img" id="screen-habits" src="screenshots/habits.jpg" alt="Life OS Habits" loading="lazy">
+        <img class="screen-img" id="screen-journal" src="screenshots/journal.jpg" alt="Life OS Journal" loading="lazy">
+        <img class="screen-img" id="screen-finance" src="screenshots/finance.jpg" alt="Life OS Finance" loading="lazy">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MARQUEE -->
+<div class="marquee-section">
+  <div class="marquee-track">
+    <span class="marquee-item"><span class="mi"><i data-lucide="command"></i></span>Komut Paleti</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="globe"></i></span>5 Dil</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="lock"></i></span>%100 Yerel Veri</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="cpu"></i></span>Rust Backend</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="box"></i></span>Docker Desteği</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="moon"></i></span>Karanlık / Aydınlık Mod</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="keyboard"></i></span>Tam Klavye Nav.</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="smartphone"></i></span>Duyarlı Tasarım</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="palette"></i></span>10+ Renk Teması</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="timer"></i></span>Pomodoro Zamanlayıcı</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="sparkles"></i></span>AI İçgörüleri</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="hard-drive"></i></span>Veri Taşınabilirliği</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="command"></i></span>Komut Paleti</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="globe"></i></span>5 Dil</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="lock"></i></span>%100 Yerel Veri</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="cpu"></i></span>Rust Backend</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="box"></i></span>Docker Desteği</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="moon"></i></span>Karanlık / Aydınlık Mod</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="keyboard"></i></span>Tam Klavye Nav.</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="smartphone"></i></span>Duyarlı Tasarım</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="palette"></i></span>10+ Renk Teması</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="timer"></i></span>Pomodoro Zamanlayıcı</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="sparkles"></i></span>AI İçgörüleri</span>
+    <span class="marquee-item"><span class="mi"><i data-lucide="hard-drive"></i></span>Veri Taşınabilirliği</span>
+  </div>
+</div>
+
+<!-- MODULES -->
+<section id="modules">
+  <div class="sec-label fade-up" data-i18n="mod_label">11 Modül</div>
+  <h2 class="fade-up stagger-1" data-i18n-html="mod_title">İhtiyacınız olan her şey.<br>Olmayan hiçbir şey.</h2>
+  <p class="sec-sub fade-up stagger-2" data-i18n="mod_sub">Rust arkayüzü ve yerel SQLite veritabanı tarafından desteklenen, birlikte çalışan derinlemesine entegre modüller.</p>
+  <div class="modules-grid fade-up stagger-3">
+    <div class="mod-card"><div class="mod-ico"><i data-lucide="layout-dashboard"></i></div><div class="mod-title">Dashboard</div><div class="mod-desc" data-i18n="mod_dash">Gerçek zamanlı istatistikler, haftalık aktivite grafiği, ruh hali günlüğü, AI içgörüleri ve sürükle-bırak widget'ları ile genel bakış.</div><div class="mod-tags"><span class="mod-tag">Widgets</span><span class="mod-tag">AI</span></div></div>
+    <div class="mod-card"><div class="mod-ico"><i data-lucide="check-square"></i></div><div class="mod-title">Tasks</div><div class="mod-desc" data-i18n="mod_tasks">Kanban paneli, liste görünümü, öncelikler, yinelenen görevler, alt görevler ve toplu işlemler.</div><div class="mod-tags"><span class="mod-tag">Kanban</span><span class="mod-tag">Yinelenen</span></div></div>
+    <div class="mod-card"><div class="mod-ico"><i data-lucide="repeat-2"></i></div><div class="mod-title">Habits</div><div class="mod-desc" data-i18n="mod_habits">Günlük takip, seri koruma, özel hedefli sayaç alışkanlıkları, ısı haritası takvimi.</div><div class="mod-tags"><span class="mod-tag">Seri</span><span class="mod-tag">Isı Haritası</span></div></div>
+    <div class="mod-card"><div class="mod-ico"><i data-lucide="book-open"></i></div><div class="mod-title">Journal</div><div class="mod-desc" data-i18n="mod_journal">Zaman çizelgesi ve takvim görünümleri, ruh hali/enerji takibi, yazma serileri ve şablonlar.</div><div class="mod-tags"><span class="mod-tag">Ruh Hali</span><span class="mod-tag">Şablonlar</span></div></div>
+    <div class="mod-card"><div class="mod-ico"><i data-lucide="wallet"></i></div><div class="mod-title">Finance</div><div class="mod-desc" data-i18n="mod_finance">Hesaplar, işlemler, bütçe uyarıları, CSV içe aktarma, gelir/gider grafikleri.</div><div class="mod-tags"><span class="mod-tag">Bütçe</span><span class="mod-tag">CSV</span></div></div>
+    <div class="mod-card"><div class="mod-ico"><i data-lucide="target"></i></div><div class="mod-title">Goals</div><div class="mod-desc" data-i18n="mod_goals">İlerleme halkaları, kilometre taşları, kategori organizasyonu ve son tarih takibi.</div><div class="mod-tags"><span class="mod-tag">Kilometre Taşı</span><span class="mod-tag">İlerleme</span></div></div>
+    <div class="mod-card"><div class="mod-ico"><i data-lucide="graduation-cap"></i></div><div class="mod-title">Learning</div><div class="mod-desc" data-i18n="mod_learning">Kurs takibi, ilerleme halkaları, kaynak yönetimi ve 45+ önceden hazırlanmış öğrenme yolu.</div><div class="mod-tags"><span class="mod-tag">Kurslar</span><span class="mod-tag">45+ Yol</span></div></div>
+    <div class="mod-card"><div class="mod-ico"><i data-lucide="calendar-days"></i></div><div class="mod-title">Calendar</div><div class="mod-desc" data-i18n="mod_calendar">Renk kodlu etkinlik yönetimi, ay/hafta/gün görünümleri ve sürükleme desteği.</div><div class="mod-tags"><span class="mod-tag">Etkinlikler</span><span class="mod-tag">Sürükle</span></div></div>
+    <div class="mod-card"><div class="mod-ico"><i data-lucide="timer"></i></div><div class="mod-title">Time Tracker</div><div class="mod-desc" data-i18n="mod_time">Pomodoro zamanlayıcı, oturum geçmişi, etiket tabanlı kategorizasyon ve verimlilik analitiği.</div><div class="mod-tags"><span class="mod-tag">Pomodoro</span><span class="mod-tag">Analitik</span></div></div>
+    <div class="mod-card"><div class="mod-ico"><i data-lucide="sticky-note"></i></div><div class="mod-title">Notes</div><div class="mod-desc" data-i18n="mod_notes">Klasörlerle üç panel düzeni, markdown düzenleyici, etiketler ve tam metin arama.</div><div class="mod-tags"><span class="mod-tag">Markdown</span><span class="mod-tag">Klasörler</span></div></div>
+    <div class="mod-card"><div class="mod-ico"><i data-lucide="settings-2"></i></div><div class="mod-title">Settings</div><div class="mod-desc" data-i18n="mod_settings">8 tema, 10+ vurgu rengi, yazı tipi boyutları, yoğunluk kontrolleri ve veri dışa aktarma.</div><div class="mod-tags"><span class="mod-tag">Temalar</span><span class="mod-tag">Dışa Aktar</span></div></div>
+  </div>
+</section>
+
+<!-- COMPARISON -->
+<section id="comparison">
+  <div class="sec-label fade-up" data-i18n="comp_label">Neden Life OS</div>
+  <h2 class="fade-up stagger-1" data-i18n="comp_title">Fark yaratır.</h2>
+  <p class="sec-sub fade-up stagger-2" data-i18n="comp_sub">Life OS'un diğer hayat yönetim araçlarından nasıl ayrıldığını görün.</p>
+  <div class="comparison fade-up stagger-3">
+    <div class="comp-table">
+      <div class="comp-header">
+        <div data-i18n="comp_feat">Özellik</div>
+        <div class="comp-col-h life">Life OS</div>
+        <div class="comp-col-h" data-i18n="comp_others">Diğerleri</div>
+      </div>
+      <div class="comp-row"><div class="feat" data-i18n="comp_f1">Yerel öncelikli veri</div><div class="comp-check">✓</div><div class="comp-cross">✕</div></div>
+      <div class="comp-row"><div class="feat" data-i18n="comp_f2">Açık kaynak</div><div class="comp-check">✓</div><div class="comp-cross">✕</div></div>
+      <div class="comp-row"><div class="feat" data-i18n="comp_f3">Abonelik yok</div><div class="comp-check">✓</div><div class="comp-cross">✕</div></div>
+      <div class="comp-row"><div class="feat" data-i18n="comp_f4">11 entegre modül</div><div class="comp-check">✓</div><div class="comp-cross">✕</div></div>
+      <div class="comp-row"><div class="feat" data-i18n="comp_f5">Rust arkayüzü</div><div class="comp-check">✓</div><div class="comp-cross">✕</div></div>
+      <div class="comp-row"><div class="feat" data-i18n="comp_f6">AI içgörüleri</div><div class="comp-check">✓</div><div class="comp-cross">✕</div></div>
+      <div class="comp-row"><div class="feat" data-i18n="comp_f7">Klavye öncelikli UX</div><div class="comp-check">✓</div><div class="comp-cross">✕</div></div>
+      <div class="comp-row"><div class="feat" data-i18n="comp_f8">Veri taşınabilirliği</div><div class="comp-check">✓</div><div class="comp-cross">✕</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+  <div class="sec-label fade-up" data-i18n="faq_label">SSS</div>
+  <h2 class="fade-up stagger-1" data-i18n="faq_title">Merak edilenler</h2>
+  <p class="sec-sub fade-up stagger-2" data-i18n="faq_sub">Life OS hakkında en çok sorulan sorular ve cevapları.</p>
+  <div class="faq-container fade-up stagger-3">
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span data-i18n="faq_q1">Life OS tam olarak nedir?</span><div class="faq-icon">+</div></div>
+      <div class="faq-a"><div class="faq-a-inner" data-i18n="faq_a1">Life OS; görevler, alışkanlıklar, finans, hedefler ve daha fazlasını tek bir çatı altında birleştiren, yerel öncelikli ve açık kaynaklı bir kişisel hayat yönetim sistemidir. Verileriniz cihazınızda kalır, bulut bağımlılığı yoktur.</div></div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span data-i18n="faq_q2">Verilerim güvende mi?</span><div class="faq-icon">+</div></div>
+      <div class="faq-a"><div class="faq-a-inner" data-i18n="faq_a2">Kesinlikle. Life OS "Local-first" (Yerel Öncelikli) bir felsefeyle tasarlanmıştır. Tüm verileriniz cihazınızdaki yerel bir SQLite veritabanında saklanır. İnternet bağlantısı gerekmez ve sunuculara veri gönderilmez.</div></div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span data-i18n="faq_q3">Kurulumu zor mu?</span><div class="faq-icon">+</div></div>
+      <div class="faq-a"><div class="faq-a-inner" data-i18n="faq_a3">Hayır! Sadece 3 komutla başlayabilirsiniz: clone, install ve run. Docker tercih ediyorsanız, tek bir komutla container ayağa kaldırabilirsiniz. Hiçbir yapılandırma dosyası düzenlemenize gerek yoktur.</div></div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span data-i18n="faq_q4">Neden Rust kullanıldı?</span><div class="faq-icon">+</div></div>
+      <div class="faq-a"><div class="faq-a-inner" data-i18n="faq_a4">Rust, bellek güvenliği ve olağanüstü performans sunar. Life OS'un arkayüzü (backend) Rust ile yazılmıştır, bu da yerel veritabanı işlemlerinin anlık ve sorunsuz gerçekleşmesini sağlar. Cihazınızın kaynaklarını minimum düzeyde tüketir.</div></div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span data-i18n="faq_q5">Ücretsiz mi?</span><div class="faq-icon">+</div></div>
+      <div class="faq-a"><div class="faq-a-inner" data-i18n="faq_a5">Evet, tamamen! Life OS MIT lisansı altında açık kaynaklıdır. Abonelik, gizli ücret veya premium kilidi yoktur. İstediğiniz gibi kullanabilir, değiştirebilir ve katkıda bulunabilirsiniz.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- STACK -->
+<section id="stack" style="background:var(--bg1);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+  <div class="sec-label fade-up" data-i18n="stack_label">Teknoloji Yığını</div>
+  <h2 class="fade-up stagger-1" data-i18n="stack_title">Modern araçlarla üretildi</h2>
+  <p class="sec-sub fade-up stagger-2" data-i18n="stack_sub">Baştan sona tip güvenli, performanslı ve geliştirici dostu.</p>
+  <div class="tech-grid fade-up stagger-3">
+    <div class="tech-pill"><img class="tech-logo" src="https://cdn.simpleicons.org/nextdotjs/ffffff" alt="Next.js" loading="lazy">Next.js 16</div>
+    <div class="tech-pill"><img class="tech-logo" src="https://cdn.simpleicons.org/react/61DAFB" alt="React" loading="lazy">React 19</div>
+    <div class="tech-pill"><img class="tech-logo" src="https://cdn.simpleicons.org/typescript/3178C6" alt="TypeScript" loading="lazy">TypeScript 5</div>
+    <div class="tech-pill"><img class="tech-logo" src="https://cdn.simpleicons.org/tailwindcss/06B6D4" alt="Tailwind CSS" loading="lazy">Tailwind CSS 4</div>
+    <div class="tech-pill"><img class="tech-logo" src="https://cdn.simpleicons.org/rust/ffffff" alt="Rust" loading="lazy">Rust / axum</div>
+    <div class="tech-pill"><img class="tech-logo" src="https://cdn.simpleicons.org/sqlite/003B57" style="background:#fff;padding:2px;border-radius:3px" alt="SQLite" loading="lazy">SQLite</div>
+    <div class="tech-pill"><img class="tech-logo" src="https://cdn.simpleicons.org/prisma/ffffff" alt="Prisma" loading="lazy">Prisma ORM</div>
+    <div class="tech-pill"><img class="tech-logo" src="https://cdn.simpleicons.org/reactquery/FF4154" alt="TanStack Query" loading="lazy">TanStack Query</div>
+    <div class="tech-pill"><img class="tech-logo" src="https://cdn.simpleicons.org/framer/ffffff" alt="Framer Motion" loading="lazy">Framer Motion</div>
+    <div class="tech-pill"><img class="tech-logo" src="https://cdn.simpleicons.org/docker/2496ED" alt="Docker" loading="lazy">Docker</div>
+    <div class="tech-pill"><img class="tech-logo" src="https://cdn.simpleicons.org/bun/ffffff" alt="Bun" loading="lazy">Bun Runtime</div>
+    <div class="tech-pill"><img class="tech-logo" src="https://cdn.simpleicons.org/shadcnui/ffffff" alt="shadcn/ui" loading="lazy">shadcn/ui</div>
+  </div>
+</section>
+
+<!-- INSTALL -->
+<section id="install">
+  <div class="sec-label fade-up" data-i18n="inst_label">Başlarken</div>
+  <h2 class="fade-up stagger-1" data-i18n="inst_title">Sıfır yapılandırma. Tek komut.</h2>
+  <p class="sec-sub fade-up stagger-2" data-i18n="inst_sub">Hesap yok, bulut yok, izleme yok. Sadece klonlayın, çalıştırın ve verilerinizin sahibi olun.</p>
+  <div class="install-wrap fade-up stagger-3">
+    <div class="install-steps">
+      <div class="install-step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="inst_s1_title">Depoyu klonlayın</div>
+          <div class="code-block" id="code-1">
+            <button class="code-copy" onclick="copyCode('code-1')" data-i18n="copy">Kopyala</button>
+<span class="cm"># Klonla ve gir</span>
+<span class="ck">git</span> <span class="ca">clone</span> <span class="cs">https://github.com/lunanoir21/Life-os-project.git</span>
+<span class="ck">cd</span> Life-os-project
+          </div>
+        </div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="inst_s2_title">Veritabanını kurun</div>
+          <div class="code-block" id="code-2">
+            <button class="code-copy" onclick="copyCode('code-2')" data-i18n="copy">Kopyala</button>
+<span class="ck">bun</span> <span class="ca">install</span>
+<span class="ck">bun</span> <span class="ca">run db:push</span>
+<span class="ck">bun</span> <span class="ca">run db:seed</span>   <span class="cm"># isteğe bağlı demo verisi</span>
+          </div>
+        </div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="inst_s3_title">Geliştirme sunucusunu başlatın</div>
+          <div class="code-block" id="code-3">
+            <button class="code-copy" onclick="copyCode('code-3')" data-i18n="copy">Kopyala</button>
+<span class="ck">bun</span> <span class="ca">run dev</span>
+<span class="cm"># → http://localhost:3000</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="docker-box">
+      <h3>🐳 Docker mı tercih ediyorsunuz?</h3>
+      <p data-i18n="docker_desc">SQLite'ın adlandırılmış bir birime kalıcı olarak kaydedildiği çok aşamalı yapı. Şema ilk başlatmada otomatik olarak uygulanır.</p>
+      <div class="code-block" id="code-4">
+        <button class="code-copy" onclick="copyCode('code-4')" data-i18n="copy">Kopyala</button>
+<span class="ck">bun</span> <span class="ca">run docker:up</span>   <span class="cm"># arka planda oluştur ve başlat</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="sec-label fade-up" data-i18n="cta_label">Açık Kaynak</div>
+  <h2 class="fade-up stagger-1" data-i18n="cta_title">Hayatınızın kontrolünü ele geçirmeye hazır mısınız?</h2>
+  <p class="fade-up stagger-2" data-i18n="cta_desc">Sonsuza kadar ücretsiz. Abonelik yok. Bulut yok. İzleme yok. Sadece siz ve verileriniz.</p>
+  <div class="cta-wrap fade-up stagger-3">
+    <a href="https://github.com/lunanoir21/Life-os-project" target="_blank" rel="noopener" class="cta-primary">⭐ GitHub'da Starla</a>
+    <a href="https://github.com/lunanoir21/Life-os-project/archive/refs/heads/main.zip" class="cta-secondary">⬇ ZIP İndir</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-left"><div class="dot"></div>Life OS</div>
+  <div class="footer-links">
+    <a href="https://github.com/lunanoir21/Life-os-project" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://github.com/lunanoir21/Life-os-project/issues" target="_blank" rel="noopener" data-i18n="foot_issues">Sorunlar</a>
+    <a href="https://github.com/lunanoir21/Life-os-project/blob/main/README.md" target="_blank" rel="noopener">Docs</a>
+    <a href="https://github.com/lunanoir21/Life-os-project/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+  </div>
+  <div class="footer-right" data-i18n="foot_right">❤️ & Rust ile yapıldı · MIT Lisansı</div>
+</footer>
+
+<script>
+/* ─── i18n TRANSLATIONS ─── */
+const translations = {
+  tr: {
+    nav_modules: "Modüller", nav_compare: "Karşılaştır", nav_faq: "SSS", nav_stack: "Teknoloji", nav_install: "Kurulum",
+    hero_pill: "Açık Kaynak · Yerel Öncelikli · Gizlilik Odaklı",
+    hero_title: 'Kişisel<br><em>İşletim</em> <span class="dim">Sisteminiz</span>',
+    hero_desc: "Verileri üzerinde tam kontrol isteyenler için tasarlanmış, 11 güçlü modüle sahip güzel bir hayat yönetim sistemi.",
+    hero_cta1: "Ücretsiz Başlayın →", hero_cta2: "Özellikleri Keşfet ↓",
+    stat_modules: "Modüller", stat_langs: "Diller", stat_themes: "Temalar", stat_license: "Lisans",
+    mod_label: "11 Modül", mod_title: 'İhtiyacınız olan her şey.<br>Olmayan hiçbir şey.',
+    mod_sub: "Rust arkayüzü ve yerel SQLite veritabanı tarafından desteklenen, birlikte çalışan derinlemesine entegre modüller.",
+    mod_dash: "Gerçek zamanlı istatistikler, haftalık aktivite grafiği, ruh hali günlüğü, AI içgörüleri ve sürükle-bırak widget'ları ile genel bakış.",
+    mod_tasks: "Kanban paneli, liste görünümü, öncelikler, yinelenen görevler, alt görevler ve toplu işlemler.",
+    mod_habits: "Günlük takip, seri koruma, özel hedefli sayaç alışkanlıkları, ısı haritası takvimi.",
+    mod_journal: "Zaman çizelgesi ve takvim görünümleri, ruh hali/enerji takibi, yazma serileri ve şablonlar.",
+    mod_finance: "Hesaplar, işlemler, bütçe uyarıları, CSV içe aktarma, gelir/gider grafikleri.",
+    mod_goals: "İlerleme halkaları, kilometre taşları, kategori organizasyonu ve son tarih takibi.",
+    mod_learning: "Kurs takibi, ilerleme halkaları, kaynak yönetimi ve 45+ önceden hazırlanmış öğrenme yolu.",
+    mod_calendar: "Renk kodlu etkinlik yönetimi, ay/hafta/gün görünümleri ve sürükleme desteği.",
+    mod_time: "Pomodoro zamanlayıcı, oturum geçmişi, etiket tabanlı kategorizasyon ve verimlilik analitiği.",
+    mod_notes: "Klasörlerle üç panel düzeni, markdown düzenleyici, etiketler ve tam metin arama.",
+    mod_settings: "8 tema, 10+ vurgu rengi, yazı tipi boyutları, yoğunluk kontrolleri ve veri dışa aktarma.",
+    comp_label: "Neden Life OS", comp_title: "Fark yaratır.", comp_sub: "Life OS'un diğer hayat yönetim araçlarından nasıl ayrıldığını görün.",
+    comp_feat: "Özellik", comp_others: "Diğerleri",
+    comp_f1: "Yerel öncelikli veri", comp_f2: "Açık kaynak", comp_f3: "Abonelik yok", comp_f4: "11 entegre modül",
+    comp_f5: "Rust arkayüzü", comp_f6: "AI içgörüleri", comp_f7: "Klavye öncelikli UX", comp_f8: "Veri taşınabilirliği",
+    faq_label: "SSS", faq_title: "Merak edilenler", faq_sub: "Life OS hakkında en çok sorulan sorular ve cevapları.",
+    faq_q1: "Life OS tam olarak nedir?", faq_a1: "Life OS; görevler, alışkanlıklar, finans, hedefler ve daha fazlasını tek bir çatı altında birleştiren, yerel öncelikli ve açık kaynaklı bir kişisel hayat yönetim sistemidir. Verileriniz cihazınızda kalır, bulut bağımlılığı yoktur.",
+    faq_q2: "Verilerim güvende mi?", faq_a2: "Kesinlikle. Life OS 'Local-first' (Yerel Öncelikli) bir felsefeyle tasarlanmıştır. Tüm verileriniz cihazınızdaki yerel bir SQLite veritabanında saklanır. İnternet bağlantısı gerekmez ve sunuculara veri gönderilmez.",
+    faq_q3: "Kurulumu zor mu?", faq_a3: "Hayır! Sadece 3 komutla başlayabilirsiniz: clone, install ve run. Docker tercih ediyorsanız, tek bir komutla container ayağa kaldırabilirsiniz. Hiçbir yapılandırma dosyası düzenlemenize gerek yoktur.",
+    faq_q4: "Neden Rust kullanıldı?", faq_a4: "Rust, bellek güvenliği ve olağanüstü performans sunar. Life OS'un arkayüzü Rust ile yazılmıştır, bu da yerel veritabanı işlemlerinin anlık ve sorunsuz gerçekleşmesini sağlar. Cihazınızın kaynaklarını minimum düzeyde tüketir.",
+    faq_q5: "Ücretsiz mi?", faq_a5: "Evet, tamamen! Life OS MIT lisansı altında açık kaynaklıdır. Abonelik, gizli ücret veya premium kilidi yoktur. İstediğiniz gibi kullanabilir, değiştirebilir ve katkıda bulunabilirsiniz.",
+    stack_label: "Teknoloji Yığını", stack_title: "Modern araçlarla üretildi", stack_sub: "Baştan sona tip güvenli, performanslı ve geliştirici dostu.",
+    inst_label: "Başlarken", inst_title: "Sıfır yapılandırma. Tek komut.", inst_sub: "Hesap yok, bulut yok, izleme yok. Sadece klonlayın, çalıştırın ve verilerinizin sahibi olun.",
+    inst_s1_title: "Depoyu klonlayın", inst_s2_title: "Veritabanını kurun", inst_s3_title: "Geliştirme sunucusunu başlatın",
+    docker_desc: "SQLite'ın adlandırılmış bir birime kalıcı olarak kaydedildiği çok aşamalı yapı. Şema ilk başlatmada otomatik olarak uygulanır.",
+    cta_label: "Açık Kaynak", cta_title: "Hayatınızın kontrolünü ele geçirmeye hazır mısınız?", cta_desc: "Sonsuza kadar ücretsiz. Abonelik yok. Bulut yok. İzleme yok. Sadece siz ve verileriniz.",
+    foot_issues: "Sorunlar", foot_right: "❤️ & Rust ile yapıldı · MIT Lisansı",
+    cmd_placeholder: "Komut yazın veya arayın...", copy: "Kopyala", copied: "Kopyalandı!",
+    toast_cmd: "⌘ Komut paleti için ⌘K tuşlarına basın", toast_switch: "🌍 Dil değiştirildi"
+  },
+  en: {
+    nav_modules: "Modules", nav_compare: "Compare", nav_faq: "FAQ", nav_stack: "Stack", nav_install: "Install",
+    hero_pill: "Open Source · Local-First · Privacy-First",
+    hero_title: 'Your Personal<br><em>Operating</em> <span class="dim">System</span>',
+    hero_desc: "A beautifully crafted life management system with 11 powerful modules — built for people who want full control of their data.",
+    hero_cta1: "Get Started Free →", hero_cta2: "Explore Features ↓",
+    stat_modules: "Modules", stat_langs: "Languages", stat_themes: "Themes", stat_license: "License",
+    mod_label: "11 Modules", mod_title: 'Everything you need.<br>Nothing you don\'t.',
+    mod_sub: "Deeply integrated modules that work together, powered by a Rust backend and a local SQLite database.",
+    mod_dash: "Overview with real-time stats, weekly activity chart, mood logger, AI insights, and drag-and-drop widgets.",
+    mod_tasks: "Kanban board, list view, priorities, recurring tasks, sub-tasks, and bulk operations.",
+    mod_habits: "Daily tracking, streak protection, counter habits with custom targets, heatmap calendar.",
+    mod_journal: "Timeline & calendar views, mood/energy tracking, writing streak, and quick templates.",
+    mod_finance: "Accounts, transactions, budget alerts, CSV import, income vs expense charts.",
+    mod_goals: "Progress rings, milestones, category organisation, and deadline tracking.",
+    mod_learning: "Course tracking, progress rings, resource management, and 45+ pre-made learning paths.",
+    mod_calendar: "Event management with colour coding, month/week/day views, and drag-to-reschedule.",
+    mod_time: "Dual-mode tracking with Pomodoro timer, session history, and productivity analytics.",
+    mod_notes: "Three-panel layout with folders, markdown editor, tags, and full-text search.",
+    mod_settings: "8 theme variants, 10+ accent colours, font sizes, density controls, and data export.",
+    comp_label: "Why Life OS", comp_title: "Built different.", comp_sub: "See how Life OS compares to other life management tools.",
+    comp_feat: "Feature", comp_others: "Others",
+    comp_f1: "Local-first data", comp_f2: "Open source", comp_f3: "No subscription", comp_f4: "11 integrated modules",
+    comp_f5: "Rust backend", comp_f6: "AI insights", comp_f7: "Keyboard-first UX", comp_f8: "Data portability",
+    faq_label: "FAQ", faq_title: "Frequently Asked Questions", faq_sub: "Common questions and answers about Life OS.",
+    faq_q1: "What exactly is Life OS?", faq_a1: "Life OS is a local-first, open-source personal life management system that combines tasks, habits, finance, goals, and more under one roof. Your data stays on your device, no cloud dependency.",
+    faq_q2: "Is my data safe?", faq_a2: "Absolutely. Life OS is designed with a 'Local-first' philosophy. All your data is stored in a local SQLite database on your device. No internet connection required, and no data is sent to servers.",
+    faq_q3: "Is it hard to install?", faq_a3: "No! You can get started with just 3 commands: clone, install, and run. If you prefer Docker, you can spin up a container with a single command. No configuration files to edit.",
+    faq_q4: "Why was Rust used?", faq_a4: "Rust offers memory safety and outstanding performance. Life OS's backend is written in Rust, ensuring that local database operations are instantaneous and seamless while consuming minimal device resources.",
+    faq_q5: "Is it free?", faq_a5: "Yes, completely! Life OS is open-source under the MIT license. There are no subscriptions, hidden fees, or premium locks. You can use, modify, and contribute as you wish.",
+    stack_label: "Tech Stack", stack_title: "Built with modern tools", stack_sub: "Type-safe, performant, and developer-friendly from top to bottom.",
+    inst_label: "Getting Started", inst_title: "Zero config. One command.", inst_sub: "No accounts, no cloud, no telemetry. Just clone, run, and own your data.",
+    inst_s1_title: "Clone the repository", inst_s2_title: "Install & set up the database", inst_s3_title: "Start the development server",
+    docker_desc: "Multi-stage build with SQLite persisted to a named volume. Schema applied automatically on first boot.",
+    cta_label: "Open Source", cta_title: "Ready to own your life?", cta_desc: "Free forever. No subscription. No cloud. No tracking. Just you and your data.",
+    foot_issues: "Issues", foot_right: "Built with ❤️ & Rust · MIT License",
+    cmd_placeholder: "Type a command or search...", copy: "Copy", copied: "Copied!",
+    toast_cmd: "⌘ Press ⌘K for command palette", toast_switch: "🌍 Language switched"
+  }
+};
+
+let currentLang = 'tr';
+
+function setLanguage(lang) {
+  currentLang = lang;
+  document.documentElement.lang = lang;
+  
+  // Update active button
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.trim() === lang.toUpperCase());
+  });
+
+  // Update text nodes
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (translations[lang][key]) {
+      el.textContent = translations[lang][key];
+    }
+  });
+
+  // Update HTML nodes
+  document.querySelectorAll('[data-i18n-html]').forEach(el => {
+    const key = el.getAttribute('data-i18n-html');
+    if (translations[lang][key]) {
+      el.innerHTML = translations[lang][key];
+    }
+  });
+
+  // Update placeholders
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (translations[lang][key]) {
+      el.placeholder = translations[lang][key];
+    }
+  });
+
+  showToast('🌍', translations[lang].toast_switch);
+}
+
+/* ─── PARTICLES ─── */
+(function(){
+  const c=document.getElementById('particles');
+  for(let i=0;i<30;i++){
+    const p=document.createElement('div');p.className='particle';
+    const s=Math.random()*3+1;
+    p.style.cssText=`width:${s}px;height:${s}px;left:${Math.random()*100}%;top:${Math.random()*100+100}%;--p-opacity:${Math.random()*.2+.1};animation-duration:${Math.random()*15+10}s;animation-delay:${Math.random()*10}s;`;
+    c.appendChild(p);
+  }
+})();
+
+/* ─── CURSOR GLOW ─── */
+const glow=document.getElementById('cursor-glow');
+document.addEventListener('mousemove',e=>{glow.style.left=e.clientX+'px';glow.style.top=e.clientY+'px'});
+
+/* ─── SCROLL PROGRESS ─── */
+window.addEventListener('scroll',()=>{
+  const h=document.documentElement.scrollHeight-window.innerHeight;
+  document.getElementById('scroll-progress').style.width=(window.scrollY/h)*100+'%';
+  document.getElementById('main-nav').classList.toggle('scrolled',window.scrollY>50);
+});
+
+/* ─── SCROLL FADE-IN ─── */
+const obs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');obs.unobserve(e.target)}});},{threshold:.08,rootMargin:'0px 0px -30px 0px'});
+document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
+
+/* ─── ANIMATED COUNTERS ─── */
+const cObs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      const el=e.target;const t=parseInt(el.dataset.target);const s=el.dataset.suffix||'';const txt=el.dataset.text;
+      if(txt){el.textContent=txt;cObs.unobserve(el);return}
+      let c=0;const inc=Math.ceil(t/30);
+      const timer=setInterval(()=>{c+=inc;if(c>=t){c=t;clearInterval(timer)}el.textContent=c+s;},40);
+      cObs.unobserve(el);
+    }
+  });
+},{threshold:.5});
+document.querySelectorAll('.stat-val[data-target]').forEach(el=>cObs.observe(el));
+
+/* ─── SCREENSHOT SWITCHER ─── */
+const screenMeta={
+  dashboard:'localhost:3000 — Life OS · Dashboard',
+  tasks:'localhost:3000 — Life OS · Tasks',
+  habits:'localhost:3000 — Life OS · Habits',
+  journal:'localhost:3000 — Life OS · Journal',
+  finance:'localhost:3000 — Life OS · Finance',
+};
+function switchScreen(name){
+  document.querySelectorAll('.stab').forEach(t=>t.classList.toggle('active',t.dataset.screen===name));
+  document.querySelectorAll('.screen-img').forEach(img=>img.classList.toggle('active',img.id==='screen-'+name));
+  document.getElementById('screen-url').textContent=screenMeta[name];
+}
+const screenNames=['dashboard','tasks','habits','journal','finance'];
+let autoIdx=0,autoPlay=true;
+const autoTimer=setInterval(()=>{if(!autoPlay)return;autoIdx=(autoIdx+1)%screenNames.length;switchScreen(screenNames[autoIdx]);},5000);
+document.querySelectorAll('.stab').forEach(btn=>btn.addEventListener('click',()=>{autoPlay=false;}));
+
+/* ─── 3D TILT BROWSER ─── */
+const bm=document.getElementById('browser-mockup');const bw=bm.parentElement;
+bw.addEventListener('mousemove',e=>{const r=bw.getBoundingClientRect();const x=(e.clientX-r.left)/r.width-.5;const y=(e.clientY-r.top)/r.height-.5;bm.style.transform=`rotateY(${x*3}deg) rotateX(${-y*3}deg)`;});
+bw.addEventListener('mouseleave',()=>{bm.style.transform='rotateY(0) rotateX(0)'});
+
+/* ─── MODULE CARD GLOW ─── */
+document.querySelectorAll('.mod-card').forEach(card=>{card.addEventListener('mousemove',e=>{const r=card.getBoundingClientRect();card.style.setProperty('--mx',((e.clientX-r.left)/r.width*100)+'%');card.style.setProperty('--my',((e.clientY-r.top)/r.height*100)+'%');});});
+
+/* ─── MOBILE MENU ─── */
+function toggleMobile(){document.getElementById('mobile-menu').classList.toggle('open');document.querySelector('.hamburger').classList.toggle('open');}
+
+/* ─── FAQ ACCORDION ─── */
+function toggleFaq(element) {
+  const item = element.parentElement;
+  const answer = item.querySelector('.faq-a');
+  const isOpen = item.classList.contains('open');
+  
+  // Close all
+  document.querySelectorAll('.faq-item').forEach(i => {
+    i.classList.remove('open');
+    i.querySelector('.faq-a').style.maxHeight = null;
+  });
+
+  // Open clicked if it was closed
+  if (!isOpen) {
+    item.classList.add('open');
+    answer.style.maxHeight = answer.scrollHeight + "px";
+  }
+}
+
+/* ─── COMMAND PALETTE ─── */
+const commands=[
+  {icon:'📊',label:'Modules',shortcut:'⌘1',action:()=>scrollTo('#modules')},
+  {icon:'⚖️',label:'Compare',shortcut:'⌘2',action:()=>scrollTo('#comparison')},
+  {icon:'❓',label:'FAQ',shortcut:'⌘3',action:()=>scrollTo('#faq')},
+  {icon:'🛠',label:'Tech Stack',shortcut:'⌘4',action:()=>scrollTo('#stack')},
+  {icon:'⬇',label:'Install',shortcut:'⌘5',action:()=>scrollTo('#install')},
+  {icon:'⭐',label:'Star on GitHub',shortcut:'',action:()=>window.open('https://github.com/lunanoir21/Life-os-project','_blank')},
+  {icon:'🌐',label:'Switch Language',shortcut:'⌘L',action:()=>{setLanguage(currentLang==='tr'?'en':'tr');closeCmd()}},
+];
+let cmdIdx=0;
+
+function openCmd(){document.getElementById('cmd-overlay').classList.add('open');const inp=document.getElementById('cmd-input');inp.value='';inp.focus();cmdIdx=0;renderCmdList('');}
+function closeCmd(){document.getElementById('cmd-overlay').classList.remove('open')}
+function scrollTo(sel){closeCmd();document.querySelector(sel)?.scrollIntoView({behavior:'smooth'})}
+
+function renderCmdList(q){
+  const list=document.getElementById('cmd-list');
+  const filtered=commands.filter(c=>c.label.toLowerCase().includes(q.toLowerCase()));
+  cmdIdx=Math.min(cmdIdx,filtered.length-1);if(cmdIdx<0)cmdIdx=0;
+  list.innerHTML=filtered.map((c,i)=>`<div class="cmd-item${i===cmdIdx?' active':''}" onclick="commands[${commands.indexOf(c)}].action()" onmouseenter="cmdIdx=${i};renderCmdList(document.getElementById('cmd-input').value)"><span class="cmd-item-icon">${c.icon}</span>${c.label}${c.shortcut?`<span class="cmd-item-shortcut">${c.shortcut}</span>`:''}</div>`).join('');
+}
+
+document.getElementById('cmd-input').addEventListener('input',e=>{cmdIdx=0;renderCmdList(e.target.value)});
+document.getElementById('cmd-input').addEventListener('keydown',e=>{
+  const items=document.querySelectorAll('.cmd-item');
+  if(e.key==='ArrowDown'){e.preventDefault();cmdIdx=Math.min(cmdIdx+1,items.length-1);renderCmdList(document.getElementById('cmd-input').value)}
+  else if(e.key==='ArrowUp'){e.preventDefault();cmdIdx=Math.max(cmdIdx-1,0);renderCmdList(document.getElementById('cmd-input').value)}
+  else if(e.key==='Enter'){e.preventDefault();items[cmdIdx]?.click()}
+  else if(e.key==='Escape'){closeCmd()}
+});
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();openCmd()}
+  if((e.metaKey||e.ctrlKey)&&e.key==='l'){e.preventDefault();setLanguage(currentLang==='tr'?'en':'tr')}
+  if(e.key==='Escape')closeCmd();
+});
+
+/* ─── COPY CODE ─── */
+function copyCode(id){
+  const el=document.getElementById(id);
+  const text=el.innerText.replace(/Kopyala|Copy|Copied!/g,'').trim();
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn=el.querySelector('.code-copy');
+    btn.textContent=translations[currentLang].copied;btn.classList.add('copied');
+    showToast('📋',translations[currentLang].copied);
+    setTimeout(()=>{btn.textContent=translations[currentLang].copy;btn.classList.remove('copied')},2000);
+  });
+}
+
+/* ─── TOAST ─── */
+function showToast(icon,msg){const c=document.getElementById('toast-container');const t=document.createElement('div');t.className='toast';t.innerHTML=`<span class="toast-icon">${icon}</span>${msg}`;c.appendChild(t);setTimeout(()=>{t.classList.add('out');setTimeout(()=>t.remove(),300)},2500);}
+
+/* ─── INITIAL TOAST ─── */
+setTimeout(()=>showToast('⌘',translations[currentLang].toast_cmd),2500);
+
+/* ─── LUCIDE ICONS ─── */
+if(window.lucide) lucide.createIcons();
+</script>
+</body>
+</html>

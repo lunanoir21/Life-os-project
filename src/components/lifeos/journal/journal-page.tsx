@@ -16,6 +16,8 @@ import {
   BookOpen,
   Sparkles,
   Flame,
+  LayoutTemplate,
+  ChevronDown,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -24,6 +26,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Slider } from '@/components/ui/slider'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
@@ -41,6 +44,24 @@ const moodConfigs: { value: JournalEntry['mood']; labelKey: string; icon: string
   { value: 'okay', labelKey: 'journal.okay', icon: '😐', color: 'text-amber-700 dark:text-amber-300', bg: 'bg-amber-100 dark:bg-amber-900/30', cardBg: 'bg-amber-50 dark:bg-amber-950/20', cardBorder: 'border-amber-200 dark:border-amber-800/30' },
   { value: 'bad', labelKey: 'journal.bad', icon: '😕', color: 'text-orange-700 dark:text-orange-300', bg: 'bg-orange-100 dark:bg-orange-900/30', cardBg: 'bg-orange-50 dark:bg-orange-950/20', cardBorder: 'border-orange-200 dark:border-orange-800/30' },
   { value: 'terrible', labelKey: 'journal.terrible', icon: '😢', color: 'text-red-700 dark:text-red-300', bg: 'bg-red-100 dark:bg-red-900/30', cardBg: 'bg-red-50 dark:bg-red-950/20', cardBorder: 'border-red-200 dark:border-red-800/30' },
+]
+
+const journalTemplates = [
+  {
+    id: 'morning',
+    name: '☀️ Sabah Rutini',
+    content: 'Bugün odaklanacaklarım:\n1. \n2. \n3. \n\nBugün nasıl hissediyorum:\n\nBugünün en önemli önceliği:'
+  },
+  {
+    id: 'daily',
+    name: '📝 Günlük Yansıma',
+    content: 'Bugün iyi giden şeyler:\n\nBugün ne öğrendim:\n\nBugün neyi farklı yapabilirdim:\n\nYarın için notlar:'
+  },
+  {
+    id: 'weekly',
+    name: '📊 Haftalık Özet',
+    content: 'Bu hafta tamamladıklarım:\n\nBu hafta öğrendiklerim:\n\nBu hafta zorlayıcı olan şeyler:\n\nGelecek hafta için hedefler:\n1. \n2. \n3. '
+  },
 ]
 
 const writingPrompts = [
@@ -265,7 +286,30 @@ export function JournalPage() {
               <DialogContent className="max-w-lg" aria-describedby={undefined}>
                 <DialogHeader><DialogTitle>{t('journal.newEntry')}</DialogTitle><DialogDescription className="sr-only">Write a new journal entry</DialogDescription></DialogHeader>
                 <div className="space-y-4 py-2">
-                  <div><label className="text-sm font-medium mb-1.5 block">{t('journal.titleOptional')}</label><Input placeholder={t('journal.howWasYourDay')} value={newEntry.title} onChange={e => setNewEntry(p => ({ ...p, title: e.target.value }))} /></div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1"><label className="text-sm font-medium mb-1.5 block">{t('journal.titleOptional')}</label><Input placeholder={t('journal.howWasYourDay')} value={newEntry.title} onChange={e => setNewEntry(p => ({ ...p, title: e.target.value }))} /></div>
+                    <div className="pt-5">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className="gap-1.5 h-9 shrink-0">
+                            <LayoutTemplate className="h-3.5 w-3.5" />
+                            Şablon
+                            <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {journalTemplates.map(tmpl => (
+                            <DropdownMenuItem
+                              key={tmpl.id}
+                              onClick={() => setNewEntry(p => ({ ...p, content: tmpl.content }))}
+                            >
+                              {tmpl.name}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
 
                   {/* Writing Prompt */}
                   <div className="p-3 rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 border border-emerald-200/50 dark:border-emerald-800/30">

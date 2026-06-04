@@ -34,6 +34,9 @@ jobs:
       - name: Generate Prisma Client
         run: bun run db:generate
 
+      - name: Type-check
+        run: bun run typecheck
+
       - name: Run linter
         run: bun run lint
 

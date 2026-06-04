@@ -13,6 +13,8 @@ import {
   PiggyBank,
   Search,
   Trash2,
+  AlertTriangle,
+  Upload,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -38,7 +40,7 @@ function mapApiAccount(a: Record<string, unknown>): FinanceAccount {
   return {
     id: a.id as string,
     name: a.name as string,
-    type: (a.type as string) || 'checking',
+    type: ((a.type as string) || 'checking') as FinanceAccount['type'],
     balance: (a.balance as number) || 0,
     currency: (a.currency as string) || 'USD',
     color: (a.color as string) || '#6b7280',
@@ -54,7 +56,7 @@ function mapApiTransaction(t: Record<string, unknown>): Transaction {
     id: t.id as string,
     amount: (t.amount as number) || 0,
     description: (t.description as string) || '',
-    type: (t.type as string) || 'expense',
+    type: ((t.type as string) || 'expense') as Transaction['type'],
     date: new Date(t.date as string).toISOString().split('T')[0],
     note: (t.note as string) || null,
     accountId: (t.accountId as string) || '',
@@ -72,7 +74,7 @@ function mapApiCategory(c: Record<string, unknown>): TransactionCategory {
     name: c.name as string,
     icon: (c.icon as string) || '📦',
     color: (c.color as string) || '#6b7280',
-    type: (c.type as string) || 'expense',
+    type: ((c.type as string) || 'expense') as TransactionCategory['type'],
   }
 }
 
@@ -165,18 +167,23 @@ export function FinancePage() {
     return Object.values(byCategory)
   }, [transactions])
 
-  // Monthly spending for bar chart
+  // Monthly income vs expense for grouped bar chart
   const monthlySpending = useMemo(() => {
-    const byMonth: Record<string, number> = {}
+    const byMonth: Record<string, { income: number; expense: number }> = {}
     transactions.forEach(t => {
-      if (t.type === 'expense') {
-        const month = t.date.slice(0, 7)
-        byMonth[month] = (byMonth[month] || 0) + Math.abs(t.amount)
-      }
+      const month = t.date.slice(0, 7)
+      if (!byMonth[month]) byMonth[month] = { income: 0, expense: 0 }
+      if (t.type === 'income') byMonth[month].income += Math.abs(t.amount)
+      else byMonth[month].expense += Math.abs(t.amount)
     })
     return Object.entries(byMonth)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([month, amount]) => ({ month: new Date(month + '-01').toLocaleDateString('en-US', { month: 'short' }), amount }))
+      .map(([month, { income, expense }]) => ({
+        month: new Date(month + '-01').toLocaleDateString('en-US', { month: 'short' }),
+        income,
+        expense,
+        net: income - expense,
+      }))
   }, [transactions])
 
   const handleAddAccount = useCallback(() => {
@@ -257,9 +264,9 @@ export function FinancePage() {
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="p-1.5 rounded-md" style={{ backgroundColor: account.color + '15' }}>
-                      {account.type === 'checking' ? <CreditCard className="h-4 w-4" style={{ color: account.color }} /> :
-                       account.type === 'savings' ? <PiggyBank className="h-4 w-4" style={{ color: account.color }} /> :
-                       <Wallet className="h-4 w-4" style={{ color: account.color }} />}
+                      {account.type === 'checking' ? <CreditCard className="h-4 w-4" style={{ color: account.color ?? undefined }} /> :
+                       account.type === 'savings' ? <PiggyBank className="h-4 w-4" style={{ color: account.color ?? undefined }} /> :
+                       <Wallet className="h-4 w-4" style={{ color: account.color ?? undefined }} />}
                     </div>
                     <span className="text-sm font-medium">{account.name}</span>
                   </div>
@@ -286,9 +293,59 @@ export function FinancePage() {
 
       {/* View Tabs */}
       <div className="flex items-center justify-between">
-        <Tabs value={financeView} onValueChange={v => setFinanceView(v as typeof financeView)}>
-          <TabsList className="h-8"><TabsTrigger value="overview" className="text-xs px-3 h-6 tab-transition">{t('nav.overview')}</TabsTrigger><TabsTrigger value="budget" className="text-xs px-3 h-6 tab-transition">{t('finance.budgets')}</TabsTrigger><TabsTrigger value="transactions" className="text-xs px-3 h-6 tab-transition">{t('finance.transactions')}</TabsTrigger><TabsTrigger value="analytics" className="text-xs px-3 h-6 tab-transition">{t('finance.analytics')}</TabsTrigger></TabsList>
-        </Tabs>
+        <div className="flex items-center gap-2">
+          <Tabs value={financeView} onValueChange={v => setFinanceView(v as typeof financeView)}>
+            <TabsList className="h-8"><TabsTrigger value="overview" className="text-xs px-3 h-6 tab-transition">{t('nav.overview')}</TabsTrigger><TabsTrigger value="budget" className="text-xs px-3 h-6 tab-transition">{t('finance.budgets')}</TabsTrigger><TabsTrigger value="transactions" className="text-xs px-3 h-6 tab-transition">{t('finance.transactions')}</TabsTrigger><TabsTrigger value="analytics" className="text-xs px-3 h-6 tab-transition">{t('finance.analytics')}</TabsTrigger></TabsList>
+          </Tabs>
+          {financeView === 'transactions' && (
+            <label className="cursor-pointer">
+              <input
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  const reader = new FileReader()
+                  reader.onload = (ev) => {
+                    const text = ev.target?.result as string
+                    if (!text) return
+                    const lines = text.split('\n').filter(Boolean)
+                    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''))
+                    let imported = 0
+                    const defaultAccountId = accounts[0]?.id
+                    if (!defaultAccountId) { showToast.error('Önce bir hesap ekleyin'); return }
+                    lines.slice(1).forEach(line => {
+                      const cols = line.split(',').map(c => c.trim().replace(/"/g, ''))
+                      const row: Record<string, string> = {}
+                      headers.forEach((h, i) => { row[h] = cols[i] || '' })
+                      const amount = parseFloat(row['amount'] || row['miktar'] || '0')
+                      const description = row['description'] || row['aciklama'] || row['tanım'] || 'Import'
+                      const date = row['date'] || row['tarih'] || new Date().toISOString().split('T')[0]
+                      if (!isNaN(amount) && amount !== 0) {
+                        createTransactionMutation.mutate({
+                          amount: amount < 0 ? amount : -amount,
+                          description,
+                          type: amount > 0 ? 'income' : 'expense',
+                          date,
+                          accountId: defaultAccountId,
+                          categoryId: null,
+                        })
+                        imported++
+                      }
+                    })
+                    showToast.success(`${imported} işlem içe aktarıldı`)
+                    e.target.value = ''
+                  }
+                  reader.readAsText(file)
+                }}
+              />
+              <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs pointer-events-none">
+                <Upload className="h-3.5 w-3.5" />CSV İçe Aktar
+              </Button>
+            </label>
+          )}
+        </div>
         <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
           <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1.5" />{t('finance.newTransaction')}</Button></DialogTrigger>
           <DialogContent aria-describedby={undefined}>
@@ -322,6 +379,32 @@ export function FinancePage() {
 
       {financeView === 'budget' && (
         <div className="space-y-4">
+          {/* Budget Alerts */}
+          {(() => {
+            const overBudget = budgetData.filter(b => b.percentage >= 100)
+            const nearBudget = budgetData.filter(b => b.percentage >= 80 && b.percentage < 100)
+            if (overBudget.length === 0 && nearBudget.length === 0) return null
+            return (
+              <div className="space-y-2">
+                {overBudget.map(b => (
+                  <div key={b.id} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/40">
+                    <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
+                    <span className="text-sm text-red-700 dark:text-red-300 font-medium">
+                      {b.icon} <strong>{b.name}</strong> bütçesi aşıldı — harcanan: ${b.spent.toFixed(0)} / limit: ${b.budget}
+                    </span>
+                  </div>
+                ))}
+                {nearBudget.map(b => (
+                  <div key={b.id} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40">
+                    <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+                    <span className="text-sm text-amber-700 dark:text-amber-300">
+                      {b.icon} <strong>{b.name}</strong> bütçesinin {b.percentage}% kullanıldı — ${Math.max(0, b.budget - b.spent).toFixed(0)} kaldı
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
           {budgetData.length === 0 ? (
             <Card><CardContent className="p-8 text-center text-muted-foreground">
               <div className="text-4xl mb-3">💰</div>
@@ -369,7 +452,77 @@ export function FinancePage() {
       )}
 
       {financeView === 'analytics' && (
-        <Card><CardHeader><CardTitle className="text-base">{t('finance.monthlySpendingTrend')}</CardTitle></CardHeader><CardContent><div className="h-72 bg-gradient-to-b from-muted/20 to-transparent rounded-lg p-2">{monthlySpending.length > 0 ? <ResponsiveContainer width="100%" height="100%"><BarChart data={monthlySpending}><defs><linearGradient id="financeBarGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={accentHex} stopOpacity={0.8} /><stop offset="95%" stopColor={accentHex} stopOpacity={0.4} /></linearGradient></defs><CartesianGrid strokeDasharray="3 3" className="stroke-muted" /><XAxis dataKey="month" className="text-xs" /><YAxis className="text-xs" /><Tooltip formatter={(value: number) => `$${value.toLocaleString()}`} /><Bar dataKey="amount" fill="url(#financeBarGradient)" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer> : <div className="flex items-center justify-center h-full text-muted-foreground text-sm">{t('finance.noSpendingData')}</div>}</div></CardContent></Card>
+        <div className="space-y-4">
+          {/* Income vs Expense grouped bar chart */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">{t('finance.monthlySpendingTrend')}</CardTitle>
+              <CardDescription className="text-xs">Gelir (yeşil) vs Harcama (kırmızı)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-72 bg-gradient-to-b from-muted/20 to-transparent rounded-lg p-2">
+                {monthlySpending.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={monthlySpending}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
+                      <XAxis dataKey="month" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
+                      <Tooltip formatter={(value: number) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
+                      <Bar dataKey="income" fill={accentHex} radius={[3, 3, 0, 0]} name="Gelir" />
+                      <Bar dataKey="expense" fill="#ef4444" radius={[3, 3, 0, 0]} name="Harcama" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">{t('finance.noSpendingData')}</div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          {/* Category pie chart */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">{t('finance.spendingByCategory')}</CardTitle></CardHeader>
+              <CardContent>
+                <div className="h-56">
+                  {spendingByCategory.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={spendingByCategory} cx="50%" cy="50%" innerRadius={45} outerRadius={80} dataKey="value" paddingAngle={2}>
+                          {spendingByCategory.map((entry, index) => (<Cell key={index} fill={entry.color} />))}
+                        </Pie>
+                        <Tooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-muted-foreground text-sm">{t('finance.noExpenseData')}</div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Kategori Dağılımı</CardTitle></CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {spendingByCategory.slice(0, 6).map(cat => {
+                    const total = spendingByCategory.reduce((a, b) => a + b.value, 0)
+                    const pct = total > 0 ? Math.round((cat.value / total) * 100) : 0
+                    return (
+                      <div key={cat.name}>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="font-medium">{cat.name}</span>
+                          <span className="text-muted-foreground">${cat.value.toFixed(0)} ({pct}%)</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-muted/40 overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: cat.color }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       )}
     </div>
   )

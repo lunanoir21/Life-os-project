@@ -58,7 +58,7 @@ function mapApiCourse(apiCourse: Record<string, unknown>): Course {
   const resources: CourseResource[] = ((apiCourse.resources as Record<string, unknown>[]) || []).map(r => ({
     id: r.id as string,
     title: r.title as string,
-    type: (r.type as string) || 'video',
+    type: ((r.type as string) || 'video') as CourseResource['type'],
     url: (r.url as string) || null,
     completed: (r.completed as boolean) || false,
     notes: (r.notes as string) || null,
@@ -74,7 +74,7 @@ function mapApiCourse(apiCourse: Record<string, unknown>): Course {
     description: (apiCourse.description as string) || '',
     provider: (apiCourse.provider as string) || null,
     url: (apiCourse.url as string) || null,
-    status: (apiCourse.status as string) || 'not-started',
+    status: ((apiCourse.status as string) || 'not-started') as Course['status'],
     progress,
     startDate: apiCourse.startDate ? new Date(apiCourse.startDate as string).toISOString().split('T')[0] : null,
     endDate: apiCourse.endDate ? new Date(apiCourse.endDate as string).toISOString().split('T')[0] : null,

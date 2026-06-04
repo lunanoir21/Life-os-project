@@ -19,6 +19,9 @@ import {
   AlertCircle,
   CheckSquare,
   LayoutTemplate,
+  RefreshCw,
+  Check,
+  MousePointer2,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -135,6 +138,8 @@ function mapApiTask(apiTask: Record<string, unknown>): Task {
     actualMinutes: (apiTask.actualMinutes as number) || null,
     projectId: (apiTask.projectId as string) || null,
     parentTaskId: (apiTask.parentTaskId as string) || null,
+    recurrence: (apiTask.recurrence as string || null) as Task['recurrence'],
+    recurrenceConfig: (apiTask.recurrenceConfig as string) || null,
     tags,
     createdAt: new Date(apiTask.createdAt as string).toISOString(),
     updatedAt: new Date(apiTask.updatedAt as string).toISOString(),
@@ -148,7 +153,7 @@ function mapApiProject(apiProject: Record<string, unknown>): Project {
     description: (apiProject.description as string) || '',
     color: (apiProject.color as string) || '#6b7280',
     icon: (apiProject.icon as string) || null,
-    status: (apiProject.status as string) || 'active',
+    status: ((apiProject.status as string) || 'active') as Project['status'],
     startDate: apiProject.startDate ? new Date(apiProject.startDate as string).toISOString().split('T')[0] : null,
     endDate: apiProject.endDate ? new Date(apiProject.endDate as string).toISOString().split('T')[0] : null,
     taskCount: 0,
@@ -340,7 +345,9 @@ export function TasksPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'medium' as Task['priority'], dueDate: '', projectId: '', tags: '' })
+  const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'medium' as Task['priority'], dueDate: '', projectId: '', tags: '', recurrence: 'none' as Task['recurrence'] })
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const isMobile = useIsMobile()
 
   const selectedTask = useMemo(() => tasks.find(t => t.id === selectedTaskId), [tasks, selectedTaskId])
@@ -379,9 +386,10 @@ export function TasksPage() {
       priority: newTask.priority,
       dueDate: newTask.dueDate || null,
       projectId: newTask.projectId || null,
+      recurrence: newTask.recurrence !== 'none' ? newTask.recurrence : null,
     }, {
       onSuccess: () => {
-        setNewTask({ title: '', description: '', priority: 'medium', dueDate: '', projectId: '', tags: '' })
+        setNewTask({ title: '', description: '', priority: 'medium', dueDate: '', projectId: '', tags: '', recurrence: 'none' })
         setCreateDialogOpen(false)
         showToast.success('Task created', 'New task has been added')
       }
@@ -427,6 +435,55 @@ export function TasksPage() {
     updateTaskMutation.mutate({ id, status: newStatus })
   }, [updateTaskMutation])
 
+  const handleBulkDone = useCallback(() => {
+    selectedIds.forEach(id => {
+      updateTaskMutation.mutate({ id, status: 'done' })
+    })
+    showToast.success(`${selectedIds.size} görev tamamlandı`, '')
+    setSelectedIds(new Set())
+    setSelectionMode(false)
+  }, [selectedIds, updateTaskMutation])
+
+  const handleBulkDelete = useCallback(() => {
+    if (!confirm(`${selectedIds.size} görevi silmek istediğinizden emin misiniz?`)) return
+    selectedIds.forEach(id => {
+      deleteTaskMutation.mutate(id)
+      if (selectedTaskId === id) setSelectedTaskId(null)
+    })
+    showToast.info(`${selectedIds.size} görev silindi`, '')
+    setSelectedIds(new Set())
+    setSelectionMode(false)
+  }, [selectedIds, deleteTaskMutation, selectedTaskId])
+
+  const toggleSelectId = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const [newSubtask, setNewSubtask] = useState('')
+
+  const handleAddSubtask = useCallback(() => {
+    if (!newSubtask.trim() || !selectedTaskId) return
+    createTaskMutation.mutate({
+      title: newSubtask.trim(),
+      description: '',
+      status: 'todo',
+      priority: 'medium',
+      dueDate: null,
+      projectId: null,
+      parentTaskId: selectedTaskId,
+    }, {
+      onSuccess: () => {
+        setNewSubtask('')
+        showToast.success('Alt görev eklendi', '')
+      }
+    })
+  }, [newSubtask, selectedTaskId, createTaskMutation])
+
   const taskDetailContent = selectedTask ? (
     <div className="space-y-5">
       <div className="flex items-start justify-between">
@@ -470,6 +527,42 @@ export function TasksPage() {
           ))}
         </div>
       )}
+      {selectedTask.recurrence && selectedTask.recurrence !== 'none' && (
+        <div className="flex items-center gap-2 text-sm">
+          <RefreshCw className="h-4 w-4 text-muted-foreground" />
+          <span className="text-muted-foreground">Tekrar:</span>
+          <Badge variant="secondary" className="text-xs capitalize">{selectedTask.recurrence}</Badge>
+        </div>
+      )}
+      <Separator />
+      {/* Sub-tasks */}
+      <div className="space-y-2">
+        <p className="text-sm font-medium">Alt Görevler</p>
+        {tasks.filter(t => t.parentTaskId === selectedTask.id).map(sub => (
+          <div key={sub.id} className="flex items-center gap-2">
+            <Checkbox
+              checked={sub.status === 'done'}
+              onCheckedChange={() => toggleTaskStatus(sub.id)}
+            />
+            <span className={cn('text-sm flex-1', sub.status === 'done' && 'line-through text-muted-foreground')}>{sub.title}</span>
+            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => deleteTask(sub.id)}>
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
+        ))}
+        <div className="flex items-center gap-2 mt-1">
+          <Input
+            placeholder="Alt görev ekle..."
+            value={newSubtask}
+            onChange={(e) => setNewSubtask(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAddSubtask() }}
+            className="h-7 text-xs"
+          />
+          <Button size="sm" variant="outline" className="h-7 shrink-0" onClick={handleAddSubtask} disabled={createTaskMutation.isPending}>
+            <Plus className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
       <Separator />
       <div className="space-y-2">
         <Button variant="outline" size="sm" className="w-full" onClick={() => toggleTaskStatus(selectedTask.id)}>
@@ -532,6 +625,20 @@ export function TasksPage() {
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
+              {taskView === 'list' && (
+                <Button
+                  variant={selectionMode ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="h-7 text-xs gap-1.5"
+                  onClick={() => {
+                    setSelectionMode(prev => !prev)
+                    setSelectedIds(new Set())
+                  }}
+                >
+                  <MousePointer2 className="h-3.5 w-3.5" />
+                  {selectionMode ? 'İptal' : 'Seç'}
+                </Button>
+              )}
               <div className="flex items-center gap-1">
                 {(['all', 'todo', 'in-progress', 'done'] as const).map((filter) => {
                   const count = filter === 'all' ? tasks.length : tasks.filter(t => t.status === filter).length
@@ -545,7 +652,7 @@ export function TasksPage() {
                       style={isActive ? { borderLeftColor: accentHex } : undefined}
                       onClick={() => setTaskFilter(filter)}
                     >
-                      {filter === 'all' ? t('tasks.all') : filter === 'in-progress' ? t('tasks.inProgress') : filter === 'todo' ? t('tasks.todo') : filter === 'done' ? t('tasks.done') : filter.charAt(0).toUpperCase() + filter.slice(1)}
+                      {filter === 'all' ? t('tasks.all') : filter === 'in-progress' ? t('tasks.inProgress') : filter === 'todo' ? t('tasks.todo') : t('tasks.done')}
                       <motion.span
                         key={`${filter}-${count}`}
                         initial={{ scale: 0.8, opacity: 0.5 }}
@@ -661,6 +768,18 @@ export function TasksPage() {
                       />
                     </div>
                   </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1.5 block">Tekrar</label>
+                    <Select value={newTask.recurrence ?? 'none'} onValueChange={(v) => setNewTask(prev => ({ ...prev, recurrence: v as Task['recurrence'] }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Yok</SelectItem>
+                        <SelectItem value="daily">Günlük</SelectItem>
+                        <SelectItem value="weekly">Haftalık</SelectItem>
+                        <SelectItem value="monthly">Aylık</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <DialogFooter>
                   <DialogClose asChild>
@@ -704,6 +823,9 @@ export function TasksPage() {
               onToggleStatus={toggleTaskStatus}
               onDeleteTask={deleteTask}
               accentHex={accentHex}
+              selectionMode={selectionMode}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelectId}
             />
           ) : (
             <Boardview
@@ -738,11 +860,25 @@ export function TasksPage() {
           </SheetContent>
         </Sheet>
       )}
+
+      {/* Bulk Action Bar */}
+      {selectionMode && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-card border border-border rounded-full shadow-lg px-4 py-2 z-50">
+          <span className="text-sm font-medium">{selectedIds.size} seçildi</span>
+          <Separator orientation="vertical" className="h-4" />
+          <Button size="sm" variant="ghost" onClick={handleBulkDone}>
+            <Check className="h-4 w-4 mr-1" /> Tamamla
+          </Button>
+          <Button size="sm" variant="ghost" className="text-destructive" onClick={handleBulkDelete}>
+            <Trash2 className="h-4 w-4 mr-1" /> Sil
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
 
-function Listview({ tasks, selectedTaskId, celebratingTaskId, onSelectTask, onToggleStatus, onDeleteTask, accentHex = '#10b981' }: {
+function Listview({ tasks, selectedTaskId, celebratingTaskId, onSelectTask, onToggleStatus, onDeleteTask, accentHex = '#10b981', selectionMode = false, selectedIds = new Set<string>(), onToggleSelect }: {
   tasks: Task[]
   selectedTaskId: string | null
   celebratingTaskId: string | null
@@ -750,8 +886,13 @@ function Listview({ tasks, selectedTaskId, celebratingTaskId, onSelectTask, onTo
   onToggleStatus: (id: string) => void
   onDeleteTask: (id: string) => void
   accentHex?: string
+  selectionMode?: boolean
+  selectedIds?: Set<string>
+  onToggleSelect?: (id: string) => void
 }) {
   const { t } = useTranslation()
+  const allSelected = tasks.length > 0 && tasks.every(t => selectedIds.has(t.id))
+
   if (tasks.length === 0) {
     return (
       <div className="flex items-center justify-center h-80 text-muted-foreground">
@@ -772,9 +913,25 @@ function Listview({ tasks, selectedTaskId, celebratingTaskId, onSelectTask, onTo
 
   return (
     <div className="divide-y divide-border/50">
+      {selectionMode && (
+        <div className="flex items-center gap-3 px-4 py-2 bg-muted/30 border-b border-border/50">
+          <Checkbox
+            checked={allSelected}
+            onCheckedChange={() => {
+              if (allSelected) {
+                tasks.forEach(t => { if (selectedIds.has(t.id)) onToggleSelect?.(t.id) })
+              } else {
+                tasks.forEach(t => { if (!selectedIds.has(t.id)) onToggleSelect?.(t.id) })
+              }
+            }}
+          />
+          <span className="text-xs text-muted-foreground">{allSelected ? 'Hiçbirini seçme' : 'Hepsini seç'}</span>
+        </div>
+      )}
       {tasks.map((task) => {
         const dueStatus = getDueDateStatus(task.dueDate)
         const isCelebrating = celebratingTaskId === task.id
+        const isSelected = selectedIds.has(task.id)
         return (
           <motion.div
             key={task.id}
@@ -784,23 +941,38 @@ function Listview({ tasks, selectedTaskId, celebratingTaskId, onSelectTask, onTo
               'flex items-center gap-3 px-4 py-3 hover:bg-accent/30 transition-all duration-200 cursor-pointer border-l-[3px]',
               priorityBorderColors[task.priority],
               task.status === 'done' && 'opacity-60',
-              isCelebrating && 'animate-celebrate'
+              isCelebrating && 'animate-celebrate',
+              isSelected && 'bg-accent/50'
             )}
-            style={selectedTaskId === task.id ? { borderLeftColor: accentHex, backgroundColor: 'var(--accent)' } : undefined}
-            onClick={() => onSelectTask(task.id)}
+            style={selectedTaskId === task.id && !selectionMode ? { borderLeftColor: accentHex, backgroundColor: 'var(--accent)' } : undefined}
+            onClick={() => selectionMode ? onToggleSelect?.(task.id) : onSelectTask(task.id)}
           >
-            <Checkbox
-              checked={task.status === 'done'}
-              onCheckedChange={() => onToggleStatus(task.id)}
-              onClick={(e) => e.stopPropagation()}
-              className={cn("transition-all duration-200", task.status === 'done' && 'animate-check-pop')}
-            />
+            {selectionMode ? (
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={() => onToggleSelect?.(task.id)}
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <Checkbox
+                checked={task.status === 'done'}
+                onCheckedChange={() => onToggleStatus(task.id)}
+                onClick={(e) => e.stopPropagation()}
+                className={cn("transition-all duration-200", task.status === 'done' && 'animate-check-pop')}
+              />
+            )}
             <div className={cn('w-2 h-2 rounded-full shrink-0', priorityDots[task.priority])} />
             <div className="flex-1 min-w-0">
               <p className={cn('text-sm truncate', task.status === 'done' && 'line-through-animate text-muted-foreground')}>
                 {task.title}
               </p>
             </div>
+            {task.recurrence && task.recurrence !== 'none' && (
+              <Badge variant="secondary" className="text-[10px] shrink-0 gap-1 px-1.5">
+                <RefreshCw className="h-3 w-3" />
+                {task.recurrence}
+              </Badge>
+            )}
             {task.dueDate && (
               <Badge variant="outline" className={cn('text-[10px] shrink-0 border', dueStatus.className)}>
                 {dueStatus.label || task.dueDate}
@@ -813,14 +985,16 @@ function Listview({ tasks, selectedTaskId, celebratingTaskId, onSelectTask, onTo
             )}>
               {task.status === 'in-progress' ? t('tasks.inProgress') : task.status === 'todo' ? t('tasks.todo') : t('tasks.done')}
             </Badge>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100"
-              onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id) }}
-            >
-              <Trash2 className="h-3 w-3" />
-            </Button>
+            {!selectionMode && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100"
+                onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id) }}
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            )}
           </motion.div>
         )
       })}
@@ -934,7 +1108,7 @@ function Boardview({ todoTasks, inProgressTasks, doneTasks, selectedTaskId, cele
 
     if (targetStatus && targetStatus !== currentStatus) {
       onMoveTask(taskId, targetStatus)
-      showToast.success('Task moved', `Task moved to ${statusLabels[targetStatus]}`)
+      showToast.success('Task moved', `Task moved to ${targetStatus}`)
     }
   }, [findColumnForTask, onMoveTask])
 

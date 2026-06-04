@@ -252,9 +252,13 @@ pub async fn get_dashboard(State(st): State<AppState>) -> Result<Json<Value>, Ap
     }
     let month_start_ms = {
         use chrono::{Datelike, TimeZone, Utc};
-        let dt = Utc.timestamp_millis_opt(now).unwrap();
+        let dt = Utc
+            .timestamp_millis_opt(now)
+            .single()
+            .unwrap_or_else(Utc::now);
         Utc.with_ymd_and_hms(dt.year(), dt.month(), 1, 0, 0, 0)
-            .unwrap()
+            .single()
+            .unwrap_or_else(Utc::now)
             .timestamp_millis()
     };
     let monthly_income: f64 = sqlx::query_scalar(

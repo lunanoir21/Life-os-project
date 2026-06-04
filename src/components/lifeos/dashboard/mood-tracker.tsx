@@ -52,7 +52,7 @@ export function MoodTracker() {
 
   // Build 7-day array for display
   const last7Days = useMemo(() => {
-    const days = []
+    const days: { date: Date; dayLabel: string; dateLabel: string; key: string; moodScore: number | null; emoji: string | null; moodName: string | null }[] = []
     for (let i = 6; i >= 0; i--) {
       const date = subDays(new Date(), i)
       const key = format(date, 'yyyy-MM-dd')
