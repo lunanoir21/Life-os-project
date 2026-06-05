@@ -20,6 +20,10 @@ import {
   CloudSun,
   Settings2,
   GripVertical,
+  Sparkles,
+  Zap,
+  Heart,
+  LayoutGrid,
 } from 'lucide-react'
 import {
   DndContext,
@@ -204,6 +208,59 @@ export function DashboardPage() {
       })
     }
   }, [dashboardWidgets, setDashboardWidgets])
+
+  // Predefined widget templates — one-click curated dashboard layouts.
+  // Each preset lists the widget ids to enable (in display order).
+  const widgetPresets = useMemo(() => [
+    {
+      id: 'minimal',
+      icon: Sparkles,
+      label: t('dashboard.presets.minimal'),
+      desc: t('dashboard.presets.minimalDesc'),
+      widgets: ['day-progress', 'stats-cards', 'today-tasks'],
+    },
+    {
+      id: 'productivity',
+      icon: Zap,
+      label: t('dashboard.presets.productivity'),
+      desc: t('dashboard.presets.productivityDesc'),
+      widgets: ['day-progress', 'stats-cards', 'today-tasks', 'daily-planner', 'quick-capture', 'weekly-activity'],
+    },
+    {
+      id: 'wellness',
+      icon: Heart,
+      label: t('dashboard.presets.wellness'),
+      desc: t('dashboard.presets.wellnessDesc'),
+      widgets: ['day-progress', 'mood-logger', 'journal-prompts', 'progress-ring', 'today-tasks'],
+    },
+    {
+      id: 'powerUser',
+      icon: LayoutGrid,
+      label: t('dashboard.presets.powerUser'),
+      desc: t('dashboard.presets.powerUserDesc'),
+      widgets: allWidgetIds,
+    },
+  ], [t, allWidgetIds])
+
+  // Currently active preset (only matches if the enabled widget set exactly
+  // equals the preset, regardless of any other ordering). Useful for the
+  // visual highlight in the popover.
+  const activePresetId = useMemo(() => {
+    const current = new Set(dashboardWidgets)
+    return widgetPresets.find(p =>
+      p.widgets.length === current.size && p.widgets.every(w => current.has(w))
+    )?.id ?? null
+  }, [dashboardWidgets, widgetPresets])
+
+  const applyPreset = useCallback((presetId: string) => {
+    const preset = widgetPresets.find(p => p.id === presetId)
+    if (!preset) return
+    setDashboardWidgets(preset.widgets)
+    // Put the preset widgets first in the display order so the dashboard
+    // visually reflects the curated layout immediately.
+    const missing = allWidgetIds.filter(id => !preset.widgets.includes(id))
+    setWidgetOrder([...preset.widgets, ...missing])
+  }, [widgetPresets, allWidgetIds, setDashboardWidgets])
 
   const handleWidgetToggle = useCallback((id: string, checked: boolean) => {
     if (checked) {
@@ -411,8 +468,47 @@ export function DashboardPage() {
                   {t('dashboard.customize')}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-72" align="end">
-                <div className="space-y-3">
+              <PopoverContent className="w-80" align="end">
+                <div className="space-y-4">
+                  {/* Preset templates */}
+                  <div>
+                    <h4 className="font-medium text-sm flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5" style={{ color: ringColor }} />
+                      {t('dashboard.presets.title')}
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{t('dashboard.presets.desc')}</p>
+                    <div className="mt-2.5 grid grid-cols-2 gap-1.5">
+                      {widgetPresets.map(preset => {
+                        const Icon = preset.icon
+                        const active = activePresetId === preset.id
+                        return (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => applyPreset(preset.id)}
+                            className="group relative flex items-start gap-2 rounded-lg border p-2 text-left transition-all hover:bg-accent/40"
+                            style={active
+                              ? { borderColor: ringColor, backgroundColor: `${ringColor}0f` }
+                              : { borderColor: 'hsl(var(--border) / 0.6)' }}
+                          >
+                            <div
+                              className="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
+                              style={{ backgroundColor: `${ringColor}1a`, color: ringColor }}
+                            >
+                              <Icon className="h-3.5 w-3.5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-medium truncate">{preset.label}</p>
+                              <p className="text-[10px] text-muted-foreground truncate">{preset.desc}</p>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-border/60" />
+
                   <h4 className="font-medium text-sm">{t('dashboard.dashboardWidgets')}</h4>
                   <p className="text-xs text-muted-foreground">{t('dashboard.toggleSections')} · Sürükle ile sırala</p>
                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleWidgetDragEnd}>

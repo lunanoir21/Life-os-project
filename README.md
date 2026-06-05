@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="public/logo.svg" alt="Life OS" width="112" height="112" />
+
 # Life OS
 
 **Your Personal Life Operating System**

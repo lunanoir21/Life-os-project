@@ -163,9 +163,7 @@ export function WelcomeScreen() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1, duration: 0.4 }}
           >
-            <div className="w-8 h-8 rounded-lg bg-foreground flex items-center justify-center">
-              <span className="text-background text-sm font-bold leading-none">L</span>
-            </div>
+            <img src="/logo.svg" alt="" aria-hidden className="w-8 h-8 rounded-lg" />
             <span className="font-semibold text-sm">{t('setup.welcomeHero.brandName')}</span>
           </motion.div>
 

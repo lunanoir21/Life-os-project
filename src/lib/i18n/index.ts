@@ -57,26 +57,35 @@ export function useTranslation() {
   const language = useAppStore((s) => s.language)
   const t = translations[language] || translations.en
 
+  // Resolve a key against the active language, with a fallback to English so
+  // partial translations don't surface raw key paths in the UI.
+  const resolve = (key: string): string | readonly string[] => {
+    const primary = getNestedValue(t as unknown as Record<string, unknown>, key)
+    if (primary !== key) return primary
+    if (t === translations.en) return key
+    return getNestedValue(translations.en as unknown as Record<string, unknown>, key)
+  }
+
   // Translation function that supports dot notation like 'nav.dashboard'
   const tFn = (key: string, params?: Record<string, string | number>): string => {
-    const value = getNestedValue(t as unknown as Record<string, unknown>, key)
-    
+    const value = resolve(key)
+
     if (typeof value === 'string') {
       if (!params) return value
-      
+
       // Replace {param} placeholders
       return Object.entries(params).reduce(
         (str, [k, v]) => str.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v)),
         value
       )
     }
-    
+
     return String(value)
   }
 
   // Get an array value (for motivational subtitles etc.)
   const tArray = (key: string): readonly string[] => {
-    const value = getNestedValue(t as unknown as Record<string, unknown>, key)
+    const value = resolve(key)
     if (Array.isArray(value)) return value
     return [String(value)]
   }

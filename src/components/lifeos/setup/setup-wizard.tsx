@@ -774,9 +774,7 @@ export function SetupWizard() {
       {/* ─── Left brand panel (desktop) ─── */}
       <aside className="hidden md:flex flex-col w-[320px] shrink-0 border-r border-border bg-muted/30 p-8">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-foreground flex items-center justify-center">
-            <span className="text-background text-sm font-bold leading-none">L</span>
-          </div>
+          <img src="/logo.svg" alt="" aria-hidden className="w-8 h-8 rounded-lg" />
           <span className="font-semibold">Life OS</span>
         </div>
 
@@ -834,9 +832,7 @@ export function SetupWizard() {
         {/* Mobile header */}
         <div className="md:hidden flex items-center justify-between px-5 h-14 border-b border-border shrink-0">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md bg-foreground flex items-center justify-center">
-              <span className="text-background text-xs font-bold leading-none">L</span>
-            </div>
+            <img src="/logo.svg" alt="" aria-hidden className="w-7 h-7 rounded-md" />
             <span className="font-semibold text-sm">Life OS</span>
           </div>
           <span className="text-xs text-muted-foreground">{step + 1}/{TOTAL_STEPS}</span>

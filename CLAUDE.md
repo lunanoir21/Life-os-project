@@ -5,8 +5,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Frontend
-bun run dev          # Next.js dev server on :3000
+# Local dev
+bun run dev:all      # Start the Rust backend AND the Next.js frontend together
+                     # (single terminal — prevents "API works in dev but tasks
+                     # can't be created" caused by forgetting the backend)
+# Frontend only
+bun run dev          # Next.js dev server on :3000 (proxies /api/* to :8080)
 bun run build        # Production build (standalone output)
 bun run typecheck    # tsc --noEmit (must pass before any commit)
 bun run lint         # ESLint

@@ -83,11 +83,12 @@ function SidebarContent({ collapsed }: { collapsed: boolean }) {
         collapsed && 'justify-center px-2'
       )}>
         {collapsed ? (
-          <div className="w-6 h-6 rounded bg-foreground/90 flex items-center justify-center">
-            <span className="text-background text-[10px] font-bold leading-none">L</span>
-          </div>
+          <img src="/logo.svg" alt="Life OS" className="w-7 h-7 rounded-md" />
         ) : (
-          <span className="text-sm font-semibold tracking-tight">{t('appName')}</span>
+          <div className="flex items-center gap-2">
+            <img src="/logo.svg" alt="" aria-hidden className="w-6 h-6 rounded-md shrink-0" />
+            <span className="text-sm font-semibold tracking-tight">{t('appName')}</span>
+          </div>
         )}
       </div>
 

@@ -30,6 +30,7 @@
     "backend:dev": "cd backend && cargo run",
     "backend:build": "cd backend && cargo build --release",
     "backend:start": "cd backend && ./target/release/lifeos-backend",
+    "dev:all": "node scripts/dev-all.mjs",
     "docker:build": "docker build -t life-os .",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",

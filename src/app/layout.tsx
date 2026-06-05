@@ -18,7 +18,14 @@ export const metadata: Metadata = {
   title: "Life OS - Personal Life Operating System",
   description: "Your personal life operating system. Manage tasks, notes, habits, finances, health, goals, and more — all in one place.",
   icons: {
-    icon: "/logo.svg",
+    icon: [{ url: "/logo.svg", type: "image/svg+xml" }],
+    shortcut: "/logo.svg",
+    apple: "/logo.svg",
+  },
+  openGraph: {
+    title: "Life OS",
+    description: "Your personal life operating system — calm, private, all in one place.",
+    images: ["/logo.svg"],
   },
 };
 
