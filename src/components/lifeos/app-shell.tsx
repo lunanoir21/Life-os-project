@@ -7,6 +7,7 @@ import { Header } from './header'
 import { CommandPalette } from './command-palette'
 import { GlobalSearchPanel } from './global-search-panel'
 import { SetupWizard } from './setup/setup-wizard'
+import { WelcomeScreen } from './welcome/welcome-screen'
 import { DashboardPage } from './dashboard/dashboard-page'
 import { TasksPage } from './tasks/tasks-page'
 import { NotesPage } from './notes/notes-page'
@@ -38,7 +39,7 @@ const moduleComponents: Record<string, React.ComponentType> = {
 }
 
 export function AppShell() {
-  const { activeModule, setupComplete, focusMode } = useAppStore()
+  const { activeModule, welcomeSeen, setupComplete, focusMode } = useAppStore()
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false)
   const isMobile = useIsMobile()
 
@@ -52,6 +53,9 @@ export function AppShell() {
     return () => window.removeEventListener('lifeos:show-shortcuts', handler)
   }, [])
 
+  if (!setupComplete && !welcomeSeen) {
+    return <WelcomeScreen />
+  }
   if (!setupComplete) {
     return <SetupWizard />
   }

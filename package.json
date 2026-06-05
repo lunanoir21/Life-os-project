@@ -33,7 +33,11 @@
     "docker:build": "docker build -t life-os .",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
-    "docker:logs": "docker compose logs -f"
+    "docker:logs": "docker compose logs -f",
+    "docker:start": "node scripts/docker-start.mjs",
+    "docker:stop": "node scripts/docker-stop.mjs",
+    "docker:reset": "node scripts/docker-stop.mjs --reset",
+    "start": "node scripts/docker-start.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

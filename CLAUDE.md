@@ -22,10 +22,17 @@ bun run db:seed      # Populate dev.db with demo data
 bun run backend:dev  # cargo run (connects to prisma/dev.db on :8080)
 bun run backend:build # cargo build --release
 
-# Docker (production)
-bun run docker:up    # Build image + start container in background
-bun run docker:logs  # Follow container logs
-bun run docker:down  # Stop container
+# Docker (production) — single command, works on Linux / macOS / Windows / WSL
+bun run docker:start # Detect Docker → build → up → wait healthy → tail logs
+bun run docker:stop  # Stop containers (data volume kept)
+bun run docker:reset # Stop AND delete the data volume (destructive)
+# No-Node fallbacks (run from the repo root):
+./start.sh           # Linux / macOS / WSL
+./start.ps1          # Windows PowerShell
+# Lower-level (raw compose):
+bun run docker:up    # docker compose up -d --build
+bun run docker:logs  # docker compose logs -f
+bun run docker:down  # docker compose down
 
 # Rust tests (integration, uses in-memory SQLite)
 cd backend && cargo test

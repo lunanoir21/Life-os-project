@@ -139,7 +139,8 @@ export function SetupWizard() {
   const [step, setStep] = useState(0)
   const [direction, setDirection] = useState(1)
   const [name, setName] = useState('')
-  const [selectedMode, setSelectedMode] = useState<AppearanceModeId>('black')
+  // Default to 'system' so the wizard follows the OS theme until the user picks one
+  const [selectedMode, setSelectedMode] = useState<AppearanceModeId>('system')
   const [selectedAccent, setSelectedAccent] = useState('emerald')
   const accentHex = accentColors.find(a => a.id === selectedAccent)?.color ?? '#10b981'
   const [selectedFontSize, setSelectedFontSize] = useState('medium')
@@ -174,7 +175,7 @@ export function SetupWizard() {
     brandLine2: t('setup.brandLine2'),
     brandSub: t('setup.brandSub'),
     stepOf: t('setup.stepOf'),
-    steps: Array.from({ length: 8 }, (_, i) => ({
+    steps: Array.from({ length: TOTAL_STEPS }, (_, i) => ({
       title: t(`setup.steps.${i}.title`),
       description: t(`setup.steps.${i}.description`),
     })),
@@ -249,7 +250,7 @@ export function SetupWizard() {
     settingUp: t('setup.settingUp'),
   }
 
-  const currentMode = appearanceModes.find(m => m.id === selectedMode) ?? appearanceModes[2]
+  const currentMode = appearanceModes.find(m => m.id === selectedMode) ?? appearanceModes[3]
   const selectedTheme = currentMode.theme
   const selectedVariant = currentMode.variant
 
@@ -262,6 +263,22 @@ export function SetupWizard() {
     const code = matched ? matched.code : 'en'
     setLanguage(code)
   }, [setLanguage])
+
+  // Apply theme + variant live as the user picks a mode, so the wizard
+  // itself reflects the selection instead of waiting for launch.
+  useEffect(() => {
+    setNextTheme(selectedTheme)
+    setTheme(selectedTheme)
+    setThemeVariant(selectedVariant)
+  }, [selectedTheme, selectedVariant, setNextTheme, setTheme, setThemeVariant])
+
+  // Apply accent + font size live as well so previews are honest.
+  useEffect(() => {
+    setAccentColor(selectedAccent)
+  }, [selectedAccent, setAccentColor])
+  useEffect(() => {
+    setFontSize(selectedFontSize)
+  }, [selectedFontSize, setFontSize])
 
   const progressPercent = ((step + 1) / TOTAL_STEPS) * 100
 

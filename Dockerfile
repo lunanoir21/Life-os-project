@@ -39,7 +39,7 @@ ENV NODE_ENV=production \
     BACKEND_URL="http://localhost:8080"
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && apt-get install -y --no-install-recommends openssl ca-certificates wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Next.js standalone server + static assets

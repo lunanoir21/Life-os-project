@@ -106,20 +106,24 @@ bun run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-### Docker
+### Docker — single command, every platform
 
 ```bash
-# Build and start (SQLite data persisted to a named volume)
-bun run docker:up
+# One command does it all: checks Docker, builds, starts, waits healthy, tails logs.
+# Works on Linux, macOS, Windows (PowerShell / CMD) and WSL.
+bun run docker:start
 
-# Follow logs
-bun run docker:logs
+# If you don't have Node/Bun yet, use the no-deps shell wrappers:
+./start.sh          # Linux / macOS / WSL
+./start.ps1         # Windows PowerShell
 
-# Stop
-bun run docker:down
+# Stop / reset
+bun run docker:stop          # stop, keep the data volume
+bun run docker:reset         # stop AND delete the data volume (DATA LOSS)
 ```
 
 The app will be available at [http://localhost:3000](http://localhost:3000).
+SQLite data is persisted to the `life-os-data` named volume between restarts.
 
 ### Environment Variables
 
@@ -147,9 +151,13 @@ The app will be available at [http://localhost:3000](http://localhost:3000).
 | `bun run db:push` | Apply schema to dev.db |
 | `bun run db:generate` | Regenerate Prisma client |
 | `bun run db:seed` | Populate dev.db with demo data |
-| `bun run docker:up` | Build image + start container |
-| `bun run docker:logs` | Follow container logs |
-| `bun run docker:down` | Stop container |
+| `bun run docker:start` | **One-command launch** (cross-platform: detect → build → up → wait → tail logs) |
+| `bun run docker:stop` | Stop containers, keep the data volume |
+| `bun run docker:reset` | Stop AND delete the data volume (destructive) |
+| `bun run docker:up` | Raw `docker compose up -d --build` |
+| `bun run docker:logs` | Raw `docker compose logs -f` |
+| `bun run docker:down` | Raw `docker compose down` |
+| `./start.sh` / `./start.ps1` | Shell wrappers (no Node/Bun required) |
 
 ---
 

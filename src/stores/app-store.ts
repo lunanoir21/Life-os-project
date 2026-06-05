@@ -34,6 +34,8 @@ interface AppState {
   setFocusMode: (on: boolean) => void
   
   // Setup
+  welcomeSeen: boolean
+  setWelcomeSeen: (seen: boolean) => void
   setupComplete: boolean
   setSetupComplete: (complete: boolean) => void
   showSetupWizard: boolean
@@ -93,6 +95,8 @@ export const useAppStore = create<AppState>()(
       toggleFocusMode: () => set((state) => ({ focusMode: !state.focusMode })),
       setFocusMode: (on) => set({ focusMode: on }),
       
+      welcomeSeen: false,
+      setWelcomeSeen: (seen) => set({ welcomeSeen: seen }),
       setupComplete: false,
       setSetupComplete: (complete) => set({ setupComplete: complete }),
       showSetupWizard: false,
@@ -136,6 +140,7 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         activeModule: state.activeModule,
         sidebarCollapsed: state.sidebarCollapsed,
+        welcomeSeen: state.welcomeSeen,
         setupComplete: state.setupComplete,
         focusMode: state.focusMode,
         language: state.language,

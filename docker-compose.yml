@@ -6,6 +6,7 @@ services:
     image: life-os
     container_name: life-os
     restart: unless-stopped
+    init: true
     ports:
       - "3000:3000"
     environment:
