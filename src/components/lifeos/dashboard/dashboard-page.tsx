@@ -7,9 +7,6 @@ import {
   Repeat,
   Wallet,
   Plus,
-  Target,
-  Timer,
-  BookOpen,
   BarChart3,
   Clock,
   Calendar,
@@ -24,6 +21,9 @@ import {
   Zap,
   Heart,
   LayoutGrid,
+  Flame,
+  Crown,
+  ArrowRight,
 } from 'lucide-react'
 import {
   DndContext,
@@ -51,7 +51,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Switch } from '@/components/ui/switch'
 import { useAppStore } from '@/stores/app-store'
 import { useTranslation } from '@/lib/i18n'
-import { useDashboard, useTasks, useEvents, useHabits } from '@/lib/api/hooks'
+import { useDashboard, useTasks, useEvents, useHabits, useCreateTask, useCreateNote, useCreateHabit } from '@/lib/api/hooks'
+import { showToast } from '@/lib/toast'
 import { JournalPrompts } from '@/components/lifeos/dashboard/journal-prompts'
 import { WeeklyReview } from '@/components/lifeos/dashboard/weekly-review'
 import { QuickCapture } from '@/components/lifeos/dashboard/quick-capture'
@@ -158,13 +159,39 @@ export function DashboardPage() {
   const [moodFeedback, setMoodFeedback] = useState(false)
   const [userName, setUserName] = useState<string>('')
 
-  // Translated quick actions
-  const quickActions = useMemo(() => [
-    { label: t('dashboard.newTask'), icon: CheckSquare, module: 'tasks' as const },
-    { label: t('dashboard.newNote'), icon: StickyNote, module: 'notes' as const },
-    { label: t('dashboard.journal'), icon: BookOpen, module: 'journal' as const },
-    { label: t('dashboard.focusTimer'), icon: Timer, module: 'time' as const },
-  ], [t])
+  // Inline quick-capture bar — type defaults to task, switch via the pill.
+  const [quickType, setQuickType] = useState<'task' | 'note' | 'habit'>('task')
+  const [quickValue, setQuickValue] = useState('')
+  const createTaskMut = useCreateTask()
+  const createNoteMut = useCreateNote()
+  const createHabitMut = useCreateHabit()
+  const quickSubmitting = createTaskMut.isPending || createNoteMut.isPending || createHabitMut.isPending
+
+  const handleQuickCapture = useCallback(() => {
+    const value = quickValue.trim()
+    if (!value || quickSubmitting) return
+    const onDone = () => {
+      setQuickValue('')
+      showToast.success(t('toast.created'))
+    }
+    if (quickType === 'task') {
+      createTaskMut.mutate(
+        { title: value, status: 'todo', priority: 'medium' },
+        { onSuccess: onDone },
+      )
+    } else if (quickType === 'note') {
+      createNoteMut.mutate(
+        { title: value, content: '', type: 'note', tags: [] },
+        { onSuccess: onDone },
+      )
+    } else {
+      createHabitMut.mutate(
+        { name: value, icon: '⭐', color: '#10b981', frequency: 'daily', targetCount: 1 },
+        { onSuccess: onDone },
+      )
+    }
+  }, [quickValue, quickType, quickSubmitting, createTaskMut, createNoteMut, createHabitMut, t])
+
 
   // All available widget IDs in their default order
   const allWidgetIds = [
@@ -405,6 +432,41 @@ export function DashboardPage() {
   // Day progress calculation
   const dayProgressPercent = Math.min(100, Math.max(0, ((new Date().getHours() * 60 + new Date().getMinutes() - 360) / 1080) * 100))
 
+  // ─── Hero KPIs ─────────────────────────────────────────────────────
+  // Tasks completed today — measure activity, not lifetime totals.
+  const todayDoneTasks = useMemo(() => {
+    if (!tasks) return 0
+    const todayKey = format(new Date(), 'yyyy-MM-dd')
+    return (tasks as Record<string, unknown>[]).filter(t =>
+      t.status === 'done' && typeof t.updatedAt === 'string' && (t.updatedAt as string).startsWith(todayKey)
+    ).length
+  }, [tasks])
+
+  // Consecutive active days, counted backwards from today. Stops at the
+  // first day with no completed task and no logged habit.
+  const streak = useMemo(() => {
+    let count = 0
+    // weeklyActivityData is oldest → newest; walk from the end (today).
+    for (let i = weeklyActivityData.length - 1; i >= 0; i -= 1) {
+      const day = weeklyActivityData[i]
+      if (day.tasks > 0 || day.habits > 0) count += 1
+      else break
+    }
+    return count
+  }, [weeklyActivityData])
+
+  // Pick the highest-priority unfinished task for the hero focus pill.
+  const topTask = useMemo(() => {
+    if (!tasks) return null
+    const order = { urgent: 4, high: 3, medium: 2, low: 1 } as const
+    const open = (tasks as Record<string, unknown>[]).filter(t => t.status !== 'done')
+    if (open.length === 0) return null
+    open.sort((a, b) =>
+      (order[(b.priority as keyof typeof order)] || 0) - (order[(a.priority as keyof typeof order)] || 0)
+    )
+    return open[0]
+  }, [tasks])
+
   // Mood logger handler
   const handleMoodClick = useCallback((label: string) => {
     setSelectedMood(label)
@@ -431,21 +493,128 @@ export function DashboardPage() {
   return (
     <div className="p-5 md:p-8 max-w-6xl mx-auto space-y-[var(--lifeos-section-gap)]">
 
-      {/* Welcome Section - personalized with subtitle and greeting icon */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 relative">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <GreetingIcon className="h-5 w-5 text-muted-foreground" />
-            <h2 className="text-xl font-semibold text-foreground tracking-tight">{greeting}{userName ? `, ${userName}` : ''}</h2>
+      {/* ─── Hero bento card — greeting, KPI rail, focus pill, actions ─── */}
+      <div className="relative rounded-2xl border border-border/70 bg-card overflow-hidden">
+        {/* Ambient glow tied to the active accent */}
+        <div
+          aria-hidden
+          className="absolute -top-24 -right-24 w-96 h-96 rounded-full pointer-events-none"
+          style={{ background: `radial-gradient(circle, ${ringColor}22, transparent 60%)`, filter: 'blur(40px)' }}
+        />
+        <div
+          aria-hidden
+          className="absolute -bottom-24 -left-20 w-72 h-72 rounded-full pointer-events-none"
+          style={{ background: `radial-gradient(circle, ${ringColorLight}18, transparent 60%)`, filter: 'blur(40px)' }}
+        />
+
+        <div className="relative p-5 md:p-7 flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-8">
+          {/* Greeting */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2.5">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{ backgroundColor: `${ringColor}1a`, color: ringColor, boxShadow: `0 8px 24px -12px ${ringColor}` }}
+              >
+                <GreetingIcon className="h-5 w-5" />
+              </div>
+              <h2 className="text-2xl md:text-[26px] font-semibold tracking-tight truncate">
+                {greeting}
+                {userName ? <span style={{ color: ringColor }}>, {userName}</span> : null}
+              </h2>
+            </div>
+            <p className="text-sm text-muted-foreground/80 mt-1.5">{subtitle}</p>
+            <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground/60">
+              <span>{today}</span>
+              <span className="text-muted-foreground/30">·</span>
+              <span className="font-mono tabular-nums">{format(liveTime, 'HH:mm')}</span>
+            </div>
+
+            {/* Focus pill — top-priority unfinished task, or a hint to add one */}
+            {topTask ? (
+              <button
+                onClick={() => setActiveModule('tasks')}
+                className="mt-4 group inline-flex items-center gap-2 max-w-full rounded-full pl-1.5 pr-3 py-1 border transition-colors hover:bg-accent/40"
+                style={{ borderColor: `${ringColor}40` }}
+              >
+                <span
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase"
+                  style={{ backgroundColor: `${ringColor}1a`, color: ringColor }}
+                >
+                  <Crown className="h-3 w-3" />
+                  {t('dashboard.hero.focusLabel')}
+                </span>
+                <span className="text-sm font-medium truncate">{(topTask.title as string) || ''}</span>
+                <ArrowRight className="h-3 w-3 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            ) : (
+              <p className="mt-4 text-xs text-muted-foreground/60 italic">{t('dashboard.hero.noFocus')}</p>
+            )}
           </div>
-          <p className="text-sm text-muted-foreground/70 mt-1">{subtitle}</p>
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-sm text-muted-foreground">{today}</span>
-            <span className="text-muted-foreground/30">·</span>
-            <span className="text-sm text-muted-foreground/60 font-mono tabular-nums">{format(liveTime, 'h:mm a')}</span>
+
+          {/* KPI rail — today's tasks, today's habits, current streak */}
+          <div className="grid grid-cols-3 gap-2 lg:gap-3 shrink-0 w-full lg:w-auto">
+            {[
+              {
+                icon: CheckSquare,
+                label: t('dashboard.hero.tasks'),
+                value: todayDoneTasks,
+                suffix: t('dashboard.hero.ofTotal', { total: String(totalTasks || 0) }),
+                color: ringColor,
+                onClick: () => setActiveModule('tasks'),
+              },
+              {
+                icon: Repeat,
+                label: t('dashboard.hero.habits'),
+                value: completedHabitsToday,
+                suffix: t('dashboard.hero.ofTotal', { total: String(totalHabits || 0) }),
+                color: ringColor,
+                onClick: () => setActiveModule('habits'),
+              },
+              {
+                icon: Flame,
+                label: t('dashboard.hero.streak'),
+                value: streak,
+                suffix: t('dashboard.hero.streakDays'),
+                color: '#f97316',
+                onClick: null as null | (() => void),
+              },
+            ].map((kpi) => {
+              const Icon = kpi.icon
+              const interactive = !!kpi.onClick
+              return (
+                <button
+                  key={kpi.label}
+                  type="button"
+                  onClick={kpi.onClick ?? undefined}
+                  disabled={!interactive}
+                  className={cn(
+                    'relative rounded-xl border border-border/60 bg-background/60 backdrop-blur px-3 py-3 lg:px-4 lg:py-3.5 text-left transition-all min-w-[96px] lg:min-w-[120px]',
+                    interactive && 'hover:border-transparent hover:-translate-y-0.5 hover:shadow-md',
+                  )}
+                  style={interactive ? { boxShadow: `0 0 0 0 ${kpi.color}` } : undefined}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Icon className="h-3 w-3" style={{ color: kpi.color }} />
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">{kpi.label}</span>
+                  </div>
+                  <div className="mt-1.5 flex items-baseline gap-1">
+                    {isLoading ? (
+                      <Skeleton className="h-7 w-10" />
+                    ) : (
+                      <>
+                        <span className="text-2xl font-semibold tabular-nums tracking-tight">{kpi.value}</span>
+                        <span className="text-[11px] text-muted-foreground/60 tabular-nums">{kpi.suffix}</span>
+                      </>
+                    )}
+                  </div>
+                </button>
+              )
+            })}
           </div>
         </div>
-        <div className="flex gap-2.5">
+
+        {/* Action bar at the bottom of the hero */}
+        <div className="relative border-t border-border/60 bg-muted/20 px-5 md:px-7 py-2.5 flex flex-wrap items-center justify-end gap-2">
           <Button
             onClick={() => setWeeklyReviewOpen(true)}
             variant="outline"
@@ -456,106 +625,150 @@ export function DashboardPage() {
             <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
             {t('dashboard.weeklyReview')}
           </Button>
-          <div className="flex gap-2.5">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-lg shadow-sm transition-all duration-200 hover:shadow-md"
-                >
-                  <Settings2 className="h-3.5 w-3.5 mr-1.5" />
-                  {t('dashboard.customize')}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80" align="end">
-                <div className="space-y-4">
-                  {/* Preset templates */}
-                  <div>
-                    <h4 className="font-medium text-sm flex items-center gap-1.5">
-                      <Sparkles className="h-3.5 w-3.5" style={{ color: ringColor }} />
-                      {t('dashboard.presets.title')}
-                    </h4>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{t('dashboard.presets.desc')}</p>
-                    <div className="mt-2.5 grid grid-cols-2 gap-1.5">
-                      {widgetPresets.map(preset => {
-                        const Icon = preset.icon
-                        const active = activePresetId === preset.id
-                        return (
-                          <button
-                            key={preset.id}
-                            type="button"
-                            onClick={() => applyPreset(preset.id)}
-                            className="group relative flex items-start gap-2 rounded-lg border p-2 text-left transition-all hover:bg-accent/40"
-                            style={active
-                              ? { borderColor: ringColor, backgroundColor: `${ringColor}0f` }
-                              : { borderColor: 'hsl(var(--border) / 0.6)' }}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-lg shadow-sm transition-all duration-200 hover:shadow-md"
+              >
+                <Settings2 className="h-3.5 w-3.5 mr-1.5" />
+                {t('dashboard.customize')}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80" align="end">
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium text-sm flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5" style={{ color: ringColor }} />
+                    {t('dashboard.presets.title')}
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{t('dashboard.presets.desc')}</p>
+                  <div className="mt-2.5 grid grid-cols-2 gap-1.5">
+                    {widgetPresets.map(preset => {
+                      const Icon = preset.icon
+                      const active = activePresetId === preset.id
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => applyPreset(preset.id)}
+                          className="group relative flex items-start gap-2 rounded-lg border p-2 text-left transition-all hover:bg-accent/40"
+                          style={active
+                            ? { borderColor: ringColor, backgroundColor: `${ringColor}0f` }
+                            : { borderColor: 'hsl(var(--border) / 0.6)' }}
+                        >
+                          <div
+                            className="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
+                            style={{ backgroundColor: `${ringColor}1a`, color: ringColor }}
                           >
-                            <div
-                              className="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
-                              style={{ backgroundColor: `${ringColor}1a`, color: ringColor }}
-                            >
-                              <Icon className="h-3.5 w-3.5" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs font-medium truncate">{preset.label}</p>
-                              <p className="text-[10px] text-muted-foreground truncate">{preset.desc}</p>
-                            </div>
-                          </button>
+                            <Icon className="h-3.5 w-3.5" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium truncate">{preset.label}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">{preset.desc}</p>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="border-t border-border/60" />
+
+                <h4 className="font-medium text-sm">{t('dashboard.dashboardWidgets')}</h4>
+                <p className="text-xs text-muted-foreground">{t('dashboard.toggleSections')} · Sürükle ile sırala</p>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleWidgetDragEnd}>
+                  <SortableContext items={widgetOrder} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-1">
+                      {widgetOrder.map((id) => {
+                        const label = widgetLabelMap[id as keyof typeof widgetLabelMap] || id
+                        return (
+                          <SortableWidgetRow
+                            key={id}
+                            id={id}
+                            label={label}
+                            enabled={dashboardWidgets.includes(id)}
+                            onToggle={(checked) => handleWidgetToggle(id, checked)}
+                          />
                         )
                       })}
                     </div>
-                  </div>
-
-                  <div className="border-t border-border/60" />
-
-                  <h4 className="font-medium text-sm">{t('dashboard.dashboardWidgets')}</h4>
-                  <p className="text-xs text-muted-foreground">{t('dashboard.toggleSections')} · Sürükle ile sırala</p>
-                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleWidgetDragEnd}>
-                    <SortableContext items={widgetOrder} strategy={verticalListSortingStrategy}>
-                      <div className="space-y-1">
-                        {widgetOrder.map((id) => {
-                          const label = widgetLabelMap[id as keyof typeof widgetLabelMap] || id
-                          return (
-                            <SortableWidgetRow
-                              key={id}
-                              id={id}
-                              label={label}
-                              enabled={dashboardWidgets.includes(id)}
-                              onToggle={(checked) => handleWidgetToggle(id, checked)}
-                            />
-                          )
-                        })}
-                      </div>
-                    </SortableContext>
-                  </DndContext>
-                </div>
-              </PopoverContent>
-            </Popover>
-            <Button
-              onClick={() => setCommandPaletteOpen(true)}
-              size="sm"
-              className="rounded-lg shadow-sm transition-all duration-200 hover:shadow-md"
-            >
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
-              {t('dashboard.quickAdd')}
-            </Button>
-          </div>
+                  </SortableContext>
+                </DndContext>
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Button
+            onClick={() => setCommandPaletteOpen(true)}
+            size="sm"
+            className="rounded-lg shadow-sm transition-all duration-200 hover:shadow-md text-white"
+            style={{ backgroundColor: ringColor, boxShadow: `0 10px 24px -10px ${ringColor}` }}
+          >
+            <Plus className="h-3.5 w-3.5 mr-1.5" />
+            {t('dashboard.quickAdd')}
+          </Button>
         </div>
       </div>
 
-      {/* Quick Actions - pill-shaped buttons */}
-      <div className="flex gap-2.5 flex-wrap">
-        {quickActions.map((action) => (
-          <button
-            key={action.label}
-            onClick={() => setActiveModule(action.module)}
-            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-accent/40 text-muted-foreground hover:bg-accent/70 hover:text-foreground transition-all duration-200 hover:shadow-sm"
-          >
-            <action.icon className="h-3.5 w-3.5" />
-            <span>{action.label}</span>
-          </button>
-        ))}
+      {/* Inline Quick Capture — one input, three modes, instant POST */}
+      <div
+        className="flex items-center gap-2 rounded-full border border-border/70 bg-card/60 backdrop-blur pl-2 pr-1 py-1 transition-colors focus-within:bg-card focus-within:border-border"
+        style={{ boxShadow: `0 6px 18px -16px ${ringColor}` }}
+      >
+        <div className="flex items-center gap-0.5 shrink-0">
+          {([
+            { id: 'task' as const, icon: CheckSquare, label: t('dashboard.hero.quickAddTask') },
+            { id: 'note' as const, icon: StickyNote, label: t('dashboard.hero.quickAddNote') },
+            { id: 'habit' as const, icon: Repeat, label: t('dashboard.hero.quickAddHabit') },
+          ]).map(opt => {
+            const Icon = opt.icon
+            const active = quickType === opt.id
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setQuickType(opt.id)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-xs font-medium transition-colors',
+                  active
+                    ? 'text-foreground'
+                    : 'text-muted-foreground/60 hover:text-foreground hover:bg-accent/40',
+                )}
+                style={active ? { backgroundColor: `${ringColor}1a`, color: ringColor } : undefined}
+                aria-pressed={active}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{opt.label}</span>
+              </button>
+            )
+          })}
+        </div>
+        <div className="w-px h-5 bg-border/70 shrink-0" />
+        <input
+          value={quickValue}
+          onChange={e => setQuickValue(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              handleQuickCapture()
+            }
+          }}
+          placeholder={t('dashboard.hero.quickAddPlaceholder')}
+          disabled={quickSubmitting}
+          className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50 disabled:opacity-60 px-1"
+        />
+        <button
+          type="button"
+          onClick={handleQuickCapture}
+          disabled={!quickValue.trim() || quickSubmitting}
+          className="inline-flex items-center gap-1 h-8 px-3 rounded-full text-xs font-medium text-white shrink-0 transition-opacity hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{ backgroundColor: ringColor, boxShadow: `0 6px 18px -10px ${ringColor}` }}
+          aria-label={t('add')}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">{t('add')}</span>
+        </button>
       </div>
 
       {/* Day Progress Bar - gradient with time markers */}
