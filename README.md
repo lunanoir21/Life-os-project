@@ -14,7 +14,7 @@
 
 A beautiful, local-first personal life management system — tasks, habits, journal, finance, goals, and more in one place.
 
-[Live Demo](https://lunanoir21.github.io/Life-os-project/) · [Quick Start](#getting-started) · [Docker](#docker)
+[Live Demo](https://lunanoir21.github.io/Life-os-project/) · [Documentation](https://lunanoir21.github.io/Life-os-project/documentation.html) · [Quick Start](#getting-started) · [Docker](#docker)
 
 </div>
 
