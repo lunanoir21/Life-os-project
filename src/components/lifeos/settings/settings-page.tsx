@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import {
   User, Palette, Database, Info, Download, Upload, Moon, Sun, Monitor, ChevronRight, Check, Shield, HardDrive, Code2,
   Trash2, AlertTriangle, FileJson, Keyboard, Bell, Clock, Volume2, CalendarCheck, Flame, CalendarDays, RotateCcw, Globe,
+  Wallet, ArrowLeftRight,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Slider } from '@/components/ui/slider'
@@ -12,6 +13,8 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { SUPPORTED_CURRENCIES } from '@/lib/finance/currency'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -67,7 +70,7 @@ export function SettingsPage() {
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile')
   const { theme, setTheme } = useTheme()
-  const { setSetupComplete, setShowSetupWizard, sidebarCollapsed, setSidebarCollapsed, accentColor, setAccentColor, fontSize, setFontSize, uiDensity, setUiDensity, animationsEnabled, setAnimationsEnabled, themeVariant, setThemeVariant, customAccentColor, setCustomAccentColor, setTheme: setZustandTheme, language, setLanguage } = useAppStore()
+  const { setSetupComplete, setShowSetupWizard, sidebarCollapsed, setSidebarCollapsed, accentColor, setAccentColor, fontSize, setFontSize, uiDensity, setUiDensity, animationsEnabled, setAnimationsEnabled, themeVariant, setThemeVariant, customAccentColor, setCustomAccentColor, setTheme: setZustandTheme, language, setLanguage, baseCurrency, setBaseCurrency, currencyConverterEnabled, setCurrencyConverterEnabled } = useAppStore()
 
   // Helper: resolved accent hex (handles custom color)
   const activeAccentHex = accentColor === 'custom' ? customAccentColor : (accentColorMap[accentColor] || accentColorMap.emerald)
@@ -808,6 +811,78 @@ export function SettingsPage() {
                           } : { duration: 0 }}
                         />
                       ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Finance Preferences */}
+              <Card className="overflow-hidden hover-lift">
+                <div className="h-1 bg-gradient-to-r from-teal-400 to-emerald-500" />
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Wallet className="h-4 w-4" style={{ color: activeAccentHex }} />
+                    {t('settings.financePreferences')}
+                  </CardTitle>
+                  <CardDescription>{t('settings.financePreferencesDesc')}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  {/* Base currency picker — preference, no API needed. */}
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{t('settings.baseCurrency')}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{t('settings.baseCurrencyDesc')}</p>
+                    </div>
+                    <Select value={baseCurrency} onValueChange={(v) => setBaseCurrency(v)}>
+                      <SelectTrigger className="w-32 font-mono">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SUPPORTED_CURRENCIES.map(c => (
+                          <SelectItem key={c.code} value={c.code}>
+                            <span className="font-mono">{c.code}</span>
+                            <span className="text-muted-foreground ml-1.5">{c.symbol}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Separator />
+                  {/* Live converter toggle — reactive, persisted in the store. */}
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0 flex items-start gap-3">
+                      <div
+                        className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                        style={{ backgroundColor: `${activeAccentHex}18`, color: activeAccentHex }}
+                      >
+                        <ArrowLeftRight className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">{t('settings.enableCurrencyConverter')}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{t('settings.currencyConverterDesc')}</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={currencyConverterEnabled}
+                      onCheckedChange={(checked) => {
+                        setCurrencyConverterEnabled(checked)
+                        showToast.success(
+                          checked ? t('toast.currencyConverterEnabled') : t('toast.currencyConverterDisabled'),
+                          checked ? t('toast.currencyConverterEnabledDesc') : t('toast.currencyConverterDisabledDesc'),
+                        )
+                      }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground/60 leading-relaxed">
+                    {t('settings.currencyConverterApiNote')}
+                  </p>
+                  <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                    <div className="flex items-start gap-2">
+                      <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        <p>{t('settings.currencyConverterInfo')}</p>
+                        <p className="text-[10px] opacity-70">{t('settings.frankfurterApiInfo')}</p>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

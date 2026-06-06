@@ -637,6 +637,16 @@ const fr: TranslationKeys = {
     saveChanges: 'Enregistrer les modifications',
     profileCompletion: 'Complétion du profil',
     completeProfile: 'Complétez votre profil pour débloquer toutes les fonctionnalités',
+    baseCurrency: 'Devise de base',
+    baseCurrencyDesc: 'Tous les totaux et conversions utilisent cette devise',
+    currencyConverterApiNote: "Désactive ceci pour ne plus contacter l'API externe — Life OS fonctionnera entièrement hors ligne et chaque compte sera affiché dans sa propre devise.",
+    // Finance Preferences (appearance tab)
+    financePreferences: 'Préférences financières',
+    financePreferencesDesc: 'Options du module Finances',
+    enableCurrencyConverter: 'Activer le convertisseur',
+    currencyConverterDesc: 'Affiche les taux en direct et le convertisseur dans Finances',
+    currencyConverterInfo: 'Quand activé, le module Finances affiche un convertisseur avec les taux en direct de la Banque centrale européenne.',
+    frankfurterApiInfo: "Utilise l'API Frankfurter (gratuite, sans clé). Taux mis à jour quotidiennement.",
     dangerZone: 'Zone dangereuse',
     irreversibleActions: 'Actions irréversibles',
     resetSetupWizard: "Réinitialiser l'assistant de configuration",
@@ -949,6 +959,10 @@ const fr: TranslationKeys = {
     dataCleared: 'Toutes les données ont été effacées',
     couldNotClearData: 'Impossible d\'effacer les données',
     somethingWentWrong: 'Quelque chose s\'est mal passé',
+    currencyConverterEnabled: 'Convertisseur activé',
+    currencyConverterEnabledDesc: 'Les taux en direct sont affichés',
+    currencyConverterDisabled: 'Convertisseur désactivé',
+    currencyConverterDisabledDesc: 'Le widget convertisseur est masqué',
   },
 }
 

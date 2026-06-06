@@ -637,6 +637,16 @@ const de: TranslationKeys = {
     saveChanges: 'Änderungen speichern',
     profileCompletion: 'Profilfertigstellung',
     completeProfile: 'Vervollständigen Sie Ihr Profil, um alle Funktionen freizuschalten',
+    baseCurrency: 'Basiswährung',
+    baseCurrencyDesc: 'Alle Summen und Umrechnungen nutzen diese Währung',
+    currencyConverterApiNote: 'Wenn du das ausschaltest, wird die externe Kurs-API nicht angesprochen — Life OS läuft komplett offline und jedes Konto wird in seiner eigenen Währung angezeigt.',
+    // Finance Preferences (appearance tab)
+    financePreferences: 'Finanzeinstellungen',
+    financePreferencesDesc: 'Optionen des Finanzmoduls',
+    enableCurrencyConverter: 'Währungsumrechner aktivieren',
+    currencyConverterDesc: 'Zeigt Live-Kurse und den Umrechner im Finanzmodul',
+    currencyConverterInfo: 'Wenn aktiv, zeigt das Finanzmodul einen Umrechner mit Live-Kursen der Europäischen Zentralbank.',
+    frankfurterApiInfo: 'Verwendet die Frankfurter-API (kostenlos, kein Schlüssel). Kurse werden täglich aktualisiert.',
     dangerZone: 'Gefahrenzone',
     irreversibleActions: 'Nicht rückgängig zu machende Aktionen',
     resetSetupWizard: 'Setup-Assistenten zurücksetzen',
@@ -949,6 +959,10 @@ const de: TranslationKeys = {
     dataCleared: 'Alle Daten wurden gelöscht',
     couldNotClearData: 'Daten konnten nicht gelöscht werden',
     somethingWentWrong: 'Etwas ist schiefgelaufen',
+    currencyConverterEnabled: 'Umrechner aktiviert',
+    currencyConverterEnabledDesc: 'Live-Kurse werden angezeigt',
+    currencyConverterDisabled: 'Umrechner deaktiviert',
+    currencyConverterDisabledDesc: 'Das Umrechner-Widget ist ausgeblendet',
   },
 }
 

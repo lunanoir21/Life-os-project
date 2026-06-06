@@ -148,9 +148,10 @@ export function FinancePage() {
   const accentColor = useAppStore((s) => s.accentColor)
   const baseCurrency = useAppStore((s) => s.baseCurrency)
   const setBaseCurrency = useAppStore((s) => s.setBaseCurrency)
+  const currencyConverterEnabled = useAppStore((s) => s.currencyConverterEnabled)
   const { t } = useTranslation()
   const accentHex = accentHexMap[accentColor] || '#10b981'
-  const { data: ratesData, isLoading: ratesLoading, isError: ratesError, refetch: refetchRates } = useExchangeRates(baseCurrency)
+  const { data: ratesData, isLoading: ratesLoading, isError: ratesError, refetch: refetchRates } = useExchangeRates(baseCurrency, { enabled: currencyConverterEnabled })
   const { data: apiAccounts, isLoading: accountsLoading } = useFinanceAccounts()
   const { data: apiTransactions, isLoading: transactionsLoading } = useFinanceTransactions()
   const { data: apiCategories, isLoading: categoriesLoading } = useFinanceCategories()
@@ -248,7 +249,7 @@ export function FinancePage() {
   const [convAmount, setConvAmount] = useState<string>('100')
   // Use a dedicated rate fetch keyed on convFrom so the converter is
   // independent of the user's base currency selection.
-  const { data: convRates } = useExchangeRates(convFrom)
+  const { data: convRates } = useExchangeRates(convFrom, { enabled: currencyConverterEnabled })
   const convAmountNum = parseFloat(convAmount) || 0
   const convResult = convRates ? convert(convAmountNum, convFrom, convTo, convRates) : null
   const convUnitRate = convRates ? convert(1, convFrom, convTo, convRates) : null
@@ -292,7 +293,7 @@ export function FinancePage() {
 
   // 7-day history for the active converter pair, used for the sparkline
   // and the day-over-day delta badge in the converter card.
-  const { data: convHistory } = useExchangeRateHistory(convFrom, convTo, 7)
+  const { data: convHistory } = useExchangeRateHistory(convFrom, convTo, 7, { enabled: currencyConverterEnabled })
   const convDelta = useMemo(() => {
     const pts = convHistory?.points
     if (!pts || pts.length < 2) return null
@@ -487,14 +488,16 @@ export function FinancePage() {
                   ))}
                 </SelectContent>
               </Select>
-              <button
-                type="button"
-                onClick={() => refetchRates()}
-                className="inline-flex items-center justify-center h-6 w-6 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-accent/40"
-                title={t('finance.hero.ratesLoading')}
-              >
-                <RefreshCw className={cn('h-3 w-3', ratesLoading && 'animate-spin')} />
-              </button>
+              {currencyConverterEnabled && (
+                <button
+                  type="button"
+                  onClick={() => refetchRates()}
+                  className="inline-flex items-center justify-center h-6 w-6 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-accent/40"
+                  title={t('finance.hero.ratesLoading')}
+                >
+                  <RefreshCw className={cn('h-3 w-3', ratesLoading && 'animate-spin')} />
+                </button>
+              )}
             </div>
             {isLoading ? (
               <Skeleton className="h-10 w-56" />
@@ -506,15 +509,17 @@ export function FinancePage() {
                 {formatCurrency(animatedTotal, baseCurrency)}
               </h2>
             )}
-            <p className="text-[11px] text-muted-foreground/70 mt-1.5">
-              {ratesError ? t('finance.hero.ratesUnavailable')
-                : ratesLoading || !ratesData ? t('finance.hero.ratesLoading')
-                : t('finance.hero.ratesUpdated', { date: ratesData.date })}
-            </p>
+            {currencyConverterEnabled && (
+              <p className="text-[11px] text-muted-foreground/70 mt-1.5">
+                {ratesError ? t('finance.hero.ratesUnavailable')
+                  : ratesLoading || !ratesData ? t('finance.hero.ratesLoading')
+                  : t('finance.hero.ratesUpdated', { date: ratesData.date })}
+              </p>
+            )}
 
             {/* Per-currency breakdown bar — proportional segments coloured
                 by currency; click-to-filter would be a natural extension. */}
-            {balancesByCurrency.length > 1 && totalAbsBase > 0 && (
+            {currencyConverterEnabled && balancesByCurrency.length > 1 && totalAbsBase > 0 && (
               <div className="mt-4">
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
@@ -594,29 +599,32 @@ export function FinancePage() {
           </div>
         </div>
 
-        {/* Live rate marquee */}
-        <div className="relative border-t border-border/60 bg-muted/20 px-5 md:px-7 py-2.5 flex items-center gap-2 overflow-x-auto">
-          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 shrink-0">
-            1 {baseCurrency} =
-          </span>
-          {topRateBadges.length === 0 ? (
-            <span className="text-[11px] text-muted-foreground/60">
-              {ratesError ? t('finance.hero.ratesUnavailable') : t('finance.hero.ratesLoading')}
+        {/* Live rate marquee — only when the user has opted in. */}
+        {currencyConverterEnabled && (
+          <div className="relative border-t border-border/60 bg-muted/20 px-5 md:px-7 py-2.5 flex items-center gap-2 overflow-x-auto">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 shrink-0">
+              1 {baseCurrency} =
             </span>
-          ) : topRateBadges.map(({ code, rate }) => (
-            <span
-              key={code}
-              className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2.5 py-0.5 text-[11px] font-mono tabular-nums shrink-0"
-              style={{ backgroundColor: 'hsl(var(--background) / 0.6)' }}
-            >
-              <span className="text-muted-foreground/60">{code}</span>
-              <span>{rate.toLocaleString('en-US', { maximumFractionDigits: 4 })}</span>
-            </span>
-          ))}
-        </div>
+            {topRateBadges.length === 0 ? (
+              <span className="text-[11px] text-muted-foreground/60">
+                {ratesError ? t('finance.hero.ratesUnavailable') : t('finance.hero.ratesLoading')}
+              </span>
+            ) : topRateBadges.map(({ code, rate }) => (
+              <span
+                key={code}
+                className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2.5 py-0.5 text-[11px] font-mono tabular-nums shrink-0"
+                style={{ backgroundColor: 'hsl(var(--background) / 0.6)' }}
+              >
+                <span className="text-muted-foreground/60">{code}</span>
+                <span>{rate.toLocaleString('en-US', { maximumFractionDigits: 4 })}</span>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ─── Currency converter ─── */}
+      {currencyConverterEnabled && (
       <Card className="overflow-hidden">
         <div className="h-1" style={{ background: `linear-gradient(to right, ${accentHex}, ${accentHex}66)` }} />
         <CardContent className="p-4 md:p-5">
@@ -780,6 +788,7 @@ export function FinancePage() {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* View Tabs */}
       <div className="flex items-center justify-between">

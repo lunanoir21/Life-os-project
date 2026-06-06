@@ -91,7 +91,8 @@ async function fetchRates(base: string): Promise<ExchangeRates> {
  * publishes once per business day and we don't want to hammer the API on
  * every render.
  */
-export function useExchangeRates(base: string = 'USD') {
+export function useExchangeRates(base: string = 'USD', options: { enabled?: boolean } = {}) {
+  const enabled = options.enabled ?? true
   return useQuery<ExchangeRates>({
     queryKey: ['exchange-rates', base.toUpperCase()],
     queryFn: () => fetchRates(base),
@@ -99,6 +100,7 @@ export function useExchangeRates(base: string = 'USD') {
     gcTime: 24 * 60 * 60 * 1000, // 24h — keep around for offline reads
     refetchOnWindowFocus: false,
     retry: 1,
+    enabled,
   })
 }
 
@@ -147,7 +149,13 @@ async function fetchHistory(from: string, to: string, days: number): Promise<Rat
  * for an hour because Frankfurter only updates once per business day and
  * historical points are immutable.
  */
-export function useExchangeRateHistory(from: string, to: string, days: number = 7) {
+export function useExchangeRateHistory(
+  from: string,
+  to: string,
+  days: number = 7,
+  options: { enabled?: boolean } = {},
+) {
+  const callerEnabled = options.enabled ?? true
   return useQuery<RateHistory>({
     queryKey: ['exchange-rate-history', from.toUpperCase(), to.toUpperCase(), days],
     queryFn: () => fetchHistory(from, to, days),
@@ -155,7 +163,7 @@ export function useExchangeRateHistory(from: string, to: string, days: number = 
     gcTime: 24 * 60 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 1,
-    enabled: from.toUpperCase() !== to.toUpperCase(),
+    enabled: callerEnabled && from.toUpperCase() !== to.toUpperCase(),
   })
 }
 

@@ -659,6 +659,9 @@ const tr: TranslationKeys = {
     saveChanges: 'Değişiklikleri Kaydet',
     profileCompletion: 'Profil Tamamlanma',
     completeProfile: 'Tüm özellikleri açmak için profilinizi tamamlayın',
+    baseCurrency: 'Ana para birimi',
+    baseCurrencyDesc: 'Tüm toplamlar ve çevirmeler bu para birimi üzerinden',
+    currencyConverterApiNote: 'Bunu kapatınca dış kur API\'sine hiç istek atılmaz — Life OS tamamen çevrimdışı çalışır, her hesap kendi para biriminde gösterilir.',
     dangerZone: 'Tehlikeli Bölge',
     irreversibleActions: 'Geri alınamaz işlemler',
     resetSetupWizard: 'Kurulum Sihirbazını Sıfırla',
@@ -702,6 +705,13 @@ const tr: TranslationKeys = {
     sidebarSettingsDesc: 'Kenar çubuğu davranışını yapılandırın',
     resetToDefaults: 'Varsayılanlara Sıfırla',
     resetToDefaultsDesc: 'Tüm görünüm ayarlarını varsayılan değerlerine geri yükle',
+    // Finance Preferences
+    financePreferences: 'Finans Tercihleri',
+    financePreferencesDesc: 'Finans modülü seçeneklerini yapılandırın',
+    enableCurrencyConverter: 'Döviz Çeviricisini Etkinleştir',
+    currencyConverterDesc: 'Finans modülünde canlı döviz kurları ve döviz çevirici widget\'ı göster',
+    currencyConverterInfo: 'Etkinleştirildiğinde, Finans modülünde Avrupa Merkez Bankası\'ndan canlı döviz kurları ile bir döviz çevirici widget\'ı görüntülenir.',
+    frankfurterApiInfo: 'Frankfurter API kullanır (ücretsiz, API anahtarı gerektirmez). Kurlar günlük güncellenir.',
     // Language
     language: 'Dil',
     languageDesc: 'Tercih ettiğiniz dili seçin',
@@ -999,6 +1009,10 @@ const tr: TranslationKeys = {
     dataCleared: 'Tüm veriler temizlendi',
     couldNotClearData: 'Veriler temizlenemedi',
     somethingWentWrong: 'Bir şeyler ters gitti',
+    currencyConverterEnabled: 'Döviz çevirici etkinleştirildi',
+    currencyConverterEnabledDesc: 'Canlı döviz kurları artık gösteriliyor',
+    currencyConverterDisabled: 'Döviz çevirici devre dışı bırakıldı',
+    currencyConverterDisabledDesc: 'Döviz çevirici widget\'ı artık gizlendi',
   },
 }
 

@@ -659,6 +659,16 @@ const en = {
     saveChanges: 'Save Changes',
     profileCompletion: 'Profile Completion',
     completeProfile: 'Complete your profile to unlock all features',
+    baseCurrency: 'Base currency',
+    baseCurrencyDesc: 'All totals and conversions use this currency',
+    currencyConverterApiNote: 'Turn this off to skip the external rate API entirely — Life OS will then run fully offline and show each account in its own currency only.',
+    // Finance Preferences (appearance tab)
+    financePreferences: 'Finance Preferences',
+    financePreferencesDesc: 'Configure finance module options',
+    enableCurrencyConverter: 'Enable Currency Converter',
+    currencyConverterDesc: 'Show live exchange rates and currency converter widget in Finance module',
+    currencyConverterInfo: 'When enabled, the Finance module displays a currency converter widget with live exchange rates from the European Central Bank.',
+    frankfurterApiInfo: 'Uses Frankfurter API (free, no API key required). Rates updated daily.',
     dangerZone: 'Danger Zone',
     irreversibleActions: 'Irreversible actions',
     resetSetupWizard: 'Reset Setup Wizard',
@@ -999,6 +1009,10 @@ const en = {
     dataCleared: 'All data has been cleared',
     couldNotClearData: 'Could not clear data',
     somethingWentWrong: 'Something went wrong',
+    currencyConverterEnabled: 'Currency converter enabled',
+    currencyConverterEnabledDesc: 'Live exchange rates are now displayed',
+    currencyConverterDisabled: 'Currency converter disabled',
+    currencyConverterDisabledDesc: 'Currency converter widget is now hidden',
   },
 } as const
 

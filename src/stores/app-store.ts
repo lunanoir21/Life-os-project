@@ -76,6 +76,8 @@ interface AppState {
   // Finance preferences
   baseCurrency: string
   setBaseCurrency: (code: string) => void
+  currencyConverterEnabled: boolean
+  setCurrencyConverterEnabled: (enabled: boolean) => void
 
   // Enabled modules (from setup wizard)
   enabledModules: ModuleId[]
@@ -138,6 +140,8 @@ export const useAppStore = create<AppState>()(
 
       baseCurrency: 'USD',
       setBaseCurrency: (code) => set({ baseCurrency: code.toUpperCase() }),
+      currencyConverterEnabled: process.env.NEXT_PUBLIC_ENABLE_CURRENCY_CONVERTER !== 'false',
+      setCurrencyConverterEnabled: (enabled) => set({ currencyConverterEnabled: enabled }),
 
       enabledModules: ['dashboard', 'tasks', 'notes', 'habits', 'journal', 'finance', 'goals', 'learning', 'calendar', 'time', 'settings'],
       setEnabledModules: (modules) => set({ enabledModules: modules }),
@@ -160,6 +164,7 @@ export const useAppStore = create<AppState>()(
         themeVariant: state.themeVariant,
         customAccentColor: state.customAccentColor,
         baseCurrency: state.baseCurrency,
+        currencyConverterEnabled: state.currencyConverterEnabled,
         enabledModules: state.enabledModules,
       }),
     }
