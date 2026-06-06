@@ -73,6 +73,10 @@ interface AppState {
   customAccentColor: string
   setCustomAccentColor: (color: string) => void
 
+  // Finance preferences
+  baseCurrency: string
+  setBaseCurrency: (code: string) => void
+
   // Enabled modules (from setup wizard)
   enabledModules: ModuleId[]
   setEnabledModules: (modules: ModuleId[]) => void
@@ -132,6 +136,9 @@ export const useAppStore = create<AppState>()(
       customAccentColor: '#10b981',
       setCustomAccentColor: (color) => set({ customAccentColor: color }),
 
+      baseCurrency: 'USD',
+      setBaseCurrency: (code) => set({ baseCurrency: code.toUpperCase() }),
+
       enabledModules: ['dashboard', 'tasks', 'notes', 'habits', 'journal', 'finance', 'goals', 'learning', 'calendar', 'time', 'settings'],
       setEnabledModules: (modules) => set({ enabledModules: modules }),
     }),
@@ -152,6 +159,7 @@ export const useAppStore = create<AppState>()(
         animationsEnabled: state.animationsEnabled,
         themeVariant: state.themeVariant,
         customAccentColor: state.customAccentColor,
+        baseCurrency: state.baseCurrency,
         enabledModules: state.enabledModules,
       }),
     }

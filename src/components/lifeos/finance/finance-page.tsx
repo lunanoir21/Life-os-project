@@ -15,6 +15,8 @@ import {
   Trash2,
   AlertTriangle,
   Upload,
+  ArrowLeftRight,
+  RefreshCw,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -33,6 +35,7 @@ import { useAppStore } from '@/stores/app-store'
 import { useFinanceAccounts, useFinanceTransactions, useFinanceCategories, useCreateTransaction, useDeleteTransaction, useCreateAccount } from '@/lib/api/hooks'
 import { useTranslation } from '@/lib/i18n'
 import { showToast } from '@/lib/toast'
+import { SUPPORTED_CURRENCIES, useExchangeRates, convert, formatCurrency, symbolFor } from '@/lib/finance/currency'
 function cn(...inputs: (string | undefined | false)[]) { return inputs.filter(Boolean).join(' ') }
 
 // Map API data to local types
@@ -86,8 +89,11 @@ const accentHexMap: Record<string, string> = {
 
 export function FinancePage() {
   const accentColor = useAppStore((s) => s.accentColor)
+  const baseCurrency = useAppStore((s) => s.baseCurrency)
+  const setBaseCurrency = useAppStore((s) => s.setBaseCurrency)
   const { t } = useTranslation()
   const accentHex = accentHexMap[accentColor] || '#10b981'
+  const { data: ratesData, isLoading: ratesLoading, isError: ratesError, refetch: refetchRates } = useExchangeRates(baseCurrency)
   const { data: apiAccounts, isLoading: accountsLoading } = useFinanceAccounts()
   const { data: apiTransactions, isLoading: transactionsLoading } = useFinanceTransactions()
   const { data: apiCategories, isLoading: categoriesLoading } = useFinanceCategories()
@@ -145,6 +151,69 @@ export function FinancePage() {
   const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + Math.abs(t.amount), 0)
   const netSavings = totalIncome - totalExpenses
   const savingsRate = totalIncome > 0 ? Math.round((netSavings / totalIncome) * 100) : 0
+
+  // Cross-currency total balance — convert every account into the user's
+  // base currency using the live ECB rate table. Falls back to a raw sum
+  // when rates aren't available yet so the UI never goes blank.
+  const totalBalanceBase = useMemo(() => {
+    if (!ratesData) return totalBalance
+    return accounts.reduce((sum, a) => {
+      const converted = convert(a.balance, a.currency || 'USD', baseCurrency, ratesData)
+      return sum + (converted ?? a.balance)
+    }, 0)
+  }, [accounts, ratesData, baseCurrency, totalBalance])
+
+  const incomeBase = useMemo(() => {
+    if (!ratesData) return totalIncome
+    return transactions.filter(t => t.type === 'income').reduce((sum, tx) => {
+      // Transactions inherit the account currency; fall back to base.
+      const acc = accounts.find(a => a.id === tx.accountId)
+      const c = convert(tx.amount, acc?.currency || baseCurrency, baseCurrency, ratesData)
+      return sum + (c ?? tx.amount)
+    }, 0)
+  }, [transactions, accounts, ratesData, baseCurrency, totalIncome])
+
+  const expenseBase = useMemo(() => {
+    if (!ratesData) return totalExpenses
+    return transactions.filter(t => t.type === 'expense').reduce((sum, tx) => {
+      const acc = accounts.find(a => a.id === tx.accountId)
+      const c = convert(Math.abs(tx.amount), acc?.currency || baseCurrency, baseCurrency, ratesData)
+      return sum + (c ?? Math.abs(tx.amount))
+    }, 0)
+  }, [transactions, accounts, ratesData, baseCurrency, totalExpenses])
+
+  const netSavingsBase = incomeBase - expenseBase
+  const savingsRateBase = incomeBase > 0 ? Math.round((netSavingsBase / incomeBase) * 100) : 0
+
+  // ─── Currency converter widget state ──────────────────────────────
+  const [convFrom, setConvFrom] = useState<string>('USD')
+  const [convTo, setConvTo] = useState<string>('EUR')
+  const [convAmount, setConvAmount] = useState<string>('100')
+  // Use a dedicated rate fetch keyed on convFrom so the converter is
+  // independent of the user's base currency selection.
+  const { data: convRates } = useExchangeRates(convFrom)
+  const convAmountNum = parseFloat(convAmount) || 0
+  const convResult = convRates ? convert(convAmountNum, convFrom, convTo, convRates) : null
+  const convUnitRate = convRates ? convert(1, convFrom, convTo, convRates) : null
+
+  const swapConverter = useCallback(() => {
+    setConvFrom(prev => {
+      const next = convTo
+      setConvTo(prev)
+      return next
+    })
+  }, [convTo])
+
+  // Top rate badges for the hero footer — show the most common currencies
+  // relative to the chosen base, but skip the base itself.
+  const topRateBadges = useMemo(() => {
+    if (!ratesData) return [] as { code: string; rate: number }[]
+    const wanted = ['USD', 'EUR', 'GBP', 'TRY', 'JPY']
+    return wanted
+      .filter(c => c !== baseCurrency.toUpperCase())
+      .map(c => ({ code: c, rate: ratesData.rates[c] }))
+      .filter(r => typeof r.rate === 'number')
+  }, [ratesData, baseCurrency])
 
   const filteredTransactions = useMemo(() => {
     if (!searchQuery) return transactions
@@ -272,7 +341,7 @@ export function FinancePage() {
                   </div>
                   <p className={cn('text-2xl font-bold', account.balance < 0 && 'text-red-500')}>
                     {account.balance >= 0 ? <span style={{ color: accentHex }}>↑</span> : <span className="text-red-500">↓</span>}
-                    ${Math.abs(account.balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    {formatCurrency(Math.abs(account.balance), account.currency || 'USD')}
                     {account.balance < 0 && <span className="text-sm ml-1">CR</span>}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">{t('finance.accountType', { type: account.type.charAt(0).toUpperCase() + account.type.slice(1) })}</p>
@@ -283,13 +352,235 @@ export function FinancePage() {
         </div>
       )}
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="overflow-hidden hover-lift"><div className="h-1" style={{ background: `linear-gradient(to right, ${accentHex}, ${accentHex}cc)` }} /><CardContent className="p-4"><div className="flex items-center gap-2 mb-1"><DollarSign className="h-4 w-4" style={{ color: accentHex }} /><span className="text-xs text-muted-foreground">{t('finance.totalBalance')}</span></div>{isLoading ? <Skeleton className="h-6 w-24" /> : <p className="text-xl font-bold">${totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>}</CardContent></Card>
-        <Card className="overflow-hidden hover-lift"><div className="h-1" style={{ background: `linear-gradient(to right, ${accentHex}, ${accentHex}aa)` }} /><CardContent className="p-4"><div className="flex items-center gap-2 mb-1"><ArrowUpRight className="h-4 w-4" style={{ color: accentHex }} /><span className="text-xs text-muted-foreground">{t('finance.income')}</span></div>{isLoading ? <Skeleton className="h-6 w-24" /> : <p className="text-xl font-bold" style={{ color: accentHex }}>↑ +${totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>}</CardContent></Card>
-        <Card className="overflow-hidden hover-lift"><div className="h-1 bg-gradient-to-r from-orange-400 to-red-400" /><CardContent className="p-4"><div className="flex items-center gap-2 mb-1"><ArrowDownRight className="h-4 w-4 text-red-500" /><span className="text-xs text-muted-foreground">{t('finance.monthlyExpenses')}</span></div>{isLoading ? <Skeleton className="h-6 w-24" /> : <p className="text-xl font-bold text-red-500">↓ -${totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>}</CardContent></Card>
-        <Card className="overflow-hidden hover-lift"><div className="h-1" style={{ background: `linear-gradient(to right, ${accentHex}cc, ${accentHex})` }} /><CardContent className="p-4"><div className="flex items-center gap-2 mb-1"><TrendingUp className={cn('h-4 w-4', netSavings >= 0 && 'animate-trend-up')} style={{ color: accentHex }} /><span className="text-xs text-muted-foreground">{t('finance.savingsRate')}</span></div>{isLoading ? <Skeleton className="h-6 w-12" /> : <><p className={cn('text-xl font-bold', netSavings >= 0 ? '' : 'text-red-500')} style={netSavings >= 0 ? { color: accentHex } : undefined}>{netSavings >= 0 ? '↑' : '↓'}{savingsRate}%</p><div className="h-1.5 bg-muted/50 rounded-full overflow-hidden mt-2"><div className="h-full rounded-full animate-savings-fill" style={{ width: `${Math.min(100, Math.max(0, savingsRate))}%`, background: savingsRate >= 20 ? `linear-gradient(to right, ${accentHex}, ${accentHex}cc)` : savingsRate >= 10 ? 'linear-gradient(to right, #f59e0b, #f97316)' : 'linear-gradient(to right, #ef4444, #f97316)' }} /></div></>}</CardContent></Card>
+      {/* ─── Finance hero — cross-currency total + KPIs + live rates ─── */}
+      <div className="relative rounded-2xl border border-border/70 bg-card overflow-hidden">
+        <div
+          aria-hidden
+          className="absolute -top-24 -right-24 w-96 h-96 rounded-full pointer-events-none"
+          style={{ background: `radial-gradient(circle, ${accentHex}22, transparent 60%)`, filter: 'blur(40px)' }}
+        />
+        <div
+          aria-hidden
+          className="absolute -bottom-24 -left-20 w-72 h-72 rounded-full pointer-events-none"
+          style={{ background: `radial-gradient(circle, ${accentHex}14, transparent 60%)`, filter: 'blur(40px)' }}
+        />
+
+        <div className="relative p-5 md:p-7 grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-6 lg:gap-8 items-start">
+          {/* Total balance + base currency selector */}
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+                {t('finance.hero.totalLabel')}
+              </span>
+              <Select value={baseCurrency} onValueChange={(v) => setBaseCurrency(v)}>
+                <SelectTrigger className="h-6 px-2 text-[11px] gap-1 w-auto border-border/60 bg-background/60">
+                  <span className="text-muted-foreground/70">{t('finance.hero.base')}:</span>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SUPPORTED_CURRENCIES.map(c => (
+                    <SelectItem key={c.code} value={c.code}>
+                      <span className="font-mono">{c.code}</span>
+                      <span className="text-muted-foreground ml-1.5">{c.symbol}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <button
+                type="button"
+                onClick={() => refetchRates()}
+                className="inline-flex items-center justify-center h-6 w-6 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-accent/40"
+                title={t('finance.hero.ratesLoading')}
+              >
+                <RefreshCw className={cn('h-3 w-3', ratesLoading && 'animate-spin')} />
+              </button>
+            </div>
+            {isLoading ? (
+              <Skeleton className="h-10 w-56" />
+            ) : (
+              <h2 className="text-3xl md:text-[40px] font-semibold tracking-tight">
+                {formatCurrency(totalBalanceBase, baseCurrency)}
+              </h2>
+            )}
+            <p className="text-[11px] text-muted-foreground/70 mt-1.5">
+              {ratesError ? t('finance.hero.ratesUnavailable')
+                : ratesLoading || !ratesData ? t('finance.hero.ratesLoading')
+                : t('finance.hero.ratesUpdated', { date: ratesData.date })}
+            </p>
+          </div>
+
+          {/* KPI rail — income / expense / savings, all in base currency */}
+          <div className="grid grid-cols-3 gap-2 lg:gap-3 w-full lg:w-auto">
+            {[
+              {
+                icon: ArrowUpRight,
+                label: t('finance.income'),
+                value: formatCurrency(incomeBase, baseCurrency),
+                color: accentHex,
+              },
+              {
+                icon: ArrowDownRight,
+                label: t('finance.monthlyExpenses'),
+                value: formatCurrency(expenseBase, baseCurrency),
+                color: '#ef4444',
+              },
+              {
+                icon: TrendingUp,
+                label: t('finance.savingsRate'),
+                value: `${savingsRateBase}%`,
+                color: savingsRateBase >= 0 ? accentHex : '#ef4444',
+              },
+            ].map(kpi => {
+              const Icon = kpi.icon
+              return (
+                <div
+                  key={kpi.label}
+                  className="rounded-xl border border-border/60 bg-background/60 backdrop-blur px-3 py-3 lg:px-4 lg:py-3.5 min-w-[110px] lg:min-w-[140px]"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Icon className="h-3 w-3" style={{ color: kpi.color }} />
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">{kpi.label}</span>
+                  </div>
+                  {isLoading ? <Skeleton className="h-6 w-20 mt-1.5" />
+                    : <p className="mt-1.5 text-base lg:text-lg font-semibold tabular-nums truncate" style={{ color: kpi.color }}>{kpi.value}</p>}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Live rate marquee */}
+        <div className="relative border-t border-border/60 bg-muted/20 px-5 md:px-7 py-2.5 flex items-center gap-2 overflow-x-auto">
+          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 shrink-0">
+            1 {baseCurrency} =
+          </span>
+          {topRateBadges.length === 0 ? (
+            <span className="text-[11px] text-muted-foreground/60">
+              {ratesError ? t('finance.hero.ratesUnavailable') : t('finance.hero.ratesLoading')}
+            </span>
+          ) : topRateBadges.map(({ code, rate }) => (
+            <span
+              key={code}
+              className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2.5 py-0.5 text-[11px] font-mono tabular-nums shrink-0"
+              style={{ backgroundColor: 'hsl(var(--background) / 0.6)' }}
+            >
+              <span className="text-muted-foreground/60">{code}</span>
+              <span>{rate.toLocaleString('en-US', { maximumFractionDigits: 4 })}</span>
+            </span>
+          ))}
+        </div>
       </div>
+
+      {/* ─── Currency converter ─── */}
+      <Card className="overflow-hidden">
+        <div className="h-1" style={{ background: `linear-gradient(to right, ${accentHex}, ${accentHex}66)` }} />
+        <CardContent className="p-4 md:p-5">
+          <div className="flex items-center gap-2 mb-3.5">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+              style={{ backgroundColor: `${accentHex}1a`, color: accentHex }}
+            >
+              <ArrowLeftRight className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold">{t('finance.converter.title')}</h3>
+              <p className="text-[11px] text-muted-foreground/70 truncate">{t('finance.converter.subtitle')}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-end gap-3">
+            {/* From */}
+            <div>
+              <label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+                {t('finance.converter.from')}
+              </label>
+              <div className="mt-1 flex items-stretch gap-1.5">
+                <Select value={convFrom} onValueChange={setConvFrom}>
+                  <SelectTrigger className="w-[88px] shrink-0 font-mono">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUPPORTED_CURRENCIES.map(c => (
+                      <SelectItem key={c.code} value={c.code}>
+                        <span className="font-mono">{c.code}</span>
+                        <span className="text-muted-foreground ml-1.5">{c.symbol}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="relative flex-1 min-w-0">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground/60 pointer-events-none">
+                    {symbolFor(convFrom)}
+                  </span>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    value={convAmount}
+                    onChange={e => setConvAmount(e.target.value)}
+                    className="pl-7 font-mono tabular-nums text-right"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Swap */}
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={swapConverter}
+              className="h-9 w-9 self-end md:self-center md:mt-5 shrink-0"
+              aria-label={t('finance.converter.swap')}
+              title={t('finance.converter.swap')}
+            >
+              <ArrowLeftRight className="h-3.5 w-3.5" />
+            </Button>
+
+            {/* To */}
+            <div>
+              <label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+                {t('finance.converter.to')}
+              </label>
+              <div className="mt-1 flex items-stretch gap-1.5">
+                <Select value={convTo} onValueChange={setConvTo}>
+                  <SelectTrigger className="w-[88px] shrink-0 font-mono">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUPPORTED_CURRENCIES.map(c => (
+                      <SelectItem key={c.code} value={c.code}>
+                        <span className="font-mono">{c.code}</span>
+                        <span className="text-muted-foreground ml-1.5">{c.symbol}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div
+                  className="flex-1 min-w-0 h-9 px-3 rounded-md border border-border/60 bg-muted/40 flex items-center justify-end font-mono tabular-nums text-sm"
+                  aria-live="polite"
+                >
+                  {convResult === null
+                    ? <span className="text-muted-foreground/60 text-xs">{t('finance.hero.ratesLoading')}</span>
+                    : <span className="font-semibold" style={{ color: accentHex }}>
+                        {formatCurrency(convResult, convTo)}
+                      </span>}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {convUnitRate !== null && (
+            <p className="mt-3 text-[11px] text-muted-foreground/70 text-center font-mono tabular-nums">
+              {t('finance.converter.rateLine', {
+                from: convFrom,
+                value: convUnitRate.toLocaleString('en-US', { maximumFractionDigits: 4 }),
+                to: convTo,
+              })}
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* View Tabs */}
       <div className="flex items-center justify-between">
@@ -373,7 +664,7 @@ export function FinancePage() {
       ) : financeView === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Card><CardHeader className="pb-2"><CardTitle className="text-base">{t('finance.spendingByCategory')}</CardTitle></CardHeader><CardContent><div className="h-64">{spendingByCategory.length > 0 ? <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={spendingByCategory} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" label={({ name, value }) => `${name}: $${value.toFixed(0)}`}>{spendingByCategory.map((entry, index) => (<Cell key={index} fill={entry.color} />))}</Pie><Tooltip formatter={(value: number) => `$${value.toFixed(2)}`} /></PieChart></ResponsiveContainer> : <div className="flex items-center justify-center h-full text-muted-foreground text-sm">{t('finance.noExpenseData')}</div>}</div></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-base">{t('finance.recentTransactions')}</CardTitle></CardHeader><CardContent><ScrollArea className="h-64"><div className="space-y-2">{transactions.slice(0, 8).map(t => (<div key={t.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent/50 transition-colors"><span className="text-lg">{t.categoryIcon || '💵'}</span><div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{t.description}</p><p className="text-xs text-muted-foreground">{t.date}</p></div><span className={cn('text-sm font-semibold', t.type === 'income' ? '' : 'text-red-500')} style={t.type === 'income' ? { color: accentHex } : undefined}>{t.type === 'income' ? '+' : '-'}${Math.abs(t.amount).toFixed(2)}</span></div>))}</div></ScrollArea></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-base">{t('finance.recentTransactions')}</CardTitle></CardHeader><CardContent><ScrollArea className="h-64"><div className="space-y-2">{transactions.slice(0, 8).map(t => (<div key={t.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent/50 transition-colors"><span className="text-lg">{t.categoryIcon || '💵'}</span><div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{t.description}</p><p className="text-xs text-muted-foreground">{t.date}</p></div><span className={cn('text-sm font-semibold', t.type === 'income' ? '' : 'text-red-500')} style={t.type === 'income' ? { color: accentHex } : undefined}>{t.type === 'income' ? '+' : '-'}{formatCurrency(Math.abs(t.amount), accounts.find(a => a.id === t.accountId)?.currency || baseCurrency)}</span></div>))}</div></ScrollArea></CardContent></Card>
         </div>
       )}
 
@@ -448,7 +739,7 @@ export function FinancePage() {
       )}
 
       {financeView === 'transactions' && (
-        <Card className="shadow-card"><CardContent className="p-0"><div className="p-4 border-b"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder={t('finance.searchTransactions')} className="pl-9 h-9" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /></div></div><div className="divide-y">{filteredTransactions.map((tx, idx) => (<div key={tx.id} className={cn('flex items-center gap-3 px-4 py-3 hover:bg-accent/30 transition-colors', idx % 2 === 0 && 'row-even')}><div className="p-1.5 rounded-md" style={{ backgroundColor: (tx.categoryColor || '#888') + '15' }}><span className="text-base">{tx.categoryIcon || '💵'}</span></div><div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{tx.description}</p><p className="text-xs text-muted-foreground">{tx.categoryName || t('finance.uncategorized')} • {tx.date}</p></div><div className="flex items-center gap-2"><span className={cn('text-sm font-semibold shrink-0', tx.type === 'income' ? '' : 'text-red-500')} style={tx.type === 'income' ? { color: accentHex } : undefined}>{tx.type === 'income' ? <ArrowUpRight className="h-3 w-3 inline mr-0.5" /> : <ArrowDownRight className="h-3 w-3 inline mr-0.5" />}{tx.type === 'income' ? '+' : '-'}${Math.abs(tx.amount).toFixed(2)}</span><Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 hover:text-destructive" onClick={() => deleteTransactionMutation.mutate(tx.id)}><Trash2 className="h-3.5 w-3.5" /></Button></div></div>))}</div></CardContent></Card>
+        <Card className="shadow-card"><CardContent className="p-0"><div className="p-4 border-b"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder={t('finance.searchTransactions')} className="pl-9 h-9" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /></div></div><div className="divide-y">{filteredTransactions.map((tx, idx) => (<div key={tx.id} className={cn('flex items-center gap-3 px-4 py-3 hover:bg-accent/30 transition-colors', idx % 2 === 0 && 'row-even')}><div className="p-1.5 rounded-md" style={{ backgroundColor: (tx.categoryColor || '#888') + '15' }}><span className="text-base">{tx.categoryIcon || '💵'}</span></div><div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{tx.description}</p><p className="text-xs text-muted-foreground">{tx.categoryName || t('finance.uncategorized')} • {tx.date}</p></div><div className="flex items-center gap-2"><span className={cn('text-sm font-semibold shrink-0', tx.type === 'income' ? '' : 'text-red-500')} style={tx.type === 'income' ? { color: accentHex } : undefined}>{tx.type === 'income' ? <ArrowUpRight className="h-3 w-3 inline mr-0.5" /> : <ArrowDownRight className="h-3 w-3 inline mr-0.5" />}{tx.type === 'income' ? '+' : '-'}{formatCurrency(Math.abs(tx.amount), accounts.find(a => a.id === tx.accountId)?.currency || baseCurrency)}</span><Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 hover:text-destructive" onClick={() => deleteTransactionMutation.mutate(tx.id)}><Trash2 className="h-3.5 w-3.5" /></Button></div></div>))}</div></CardContent></Card>
       )}
 
       {financeView === 'analytics' && (
