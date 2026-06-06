@@ -391,6 +391,8 @@ const de: TranslationKeys = {
       ratesUpdated: 'EZB-Kurse · {date}',
       ratesUnavailable: 'Kurse nicht verfügbar',
       ratesLoading: 'Kurse werden geladen…',
+      byCurrency: 'Nach Währung',
+      dayChange: '24h',
     },
     converter: {
       title: 'Währungsumrechner',
@@ -401,6 +403,8 @@ const de: TranslationKeys = {
       result: 'Ergebnis',
       swap: 'Tauschen',
       rateLine: '1 {from} = {value} {to}',
+      trend: '7-Tage-Trend',
+      quickAmounts: 'Schnell',
     },
     totalBalance: 'Gesamtsaldo',
     monthlyIncome: 'Monatliche Einnahmen',

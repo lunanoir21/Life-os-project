@@ -391,6 +391,8 @@ const fr: TranslationKeys = {
       ratesUpdated: 'Taux BCE · {date}',
       ratesUnavailable: 'Taux indisponibles',
       ratesLoading: 'Chargement des taux…',
+      byCurrency: 'Par devise',
+      dayChange: '24h',
     },
     converter: {
       title: 'Convertisseur de devises',
@@ -401,6 +403,8 @@ const fr: TranslationKeys = {
       result: 'Résultat',
       swap: 'Inverser',
       rateLine: '1 {from} = {value} {to}',
+      trend: 'Tendance 7 jours',
+      quickAmounts: 'Rapide',
     },
     totalBalance: 'Solde total',
     monthlyIncome: 'Revenus mensuels',

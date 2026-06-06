@@ -407,6 +407,8 @@ const tr: TranslationKeys = {
       ratesUpdated: 'ECB kurları · {date}',
       ratesUnavailable: 'Canlı kurlar alınamadı',
       ratesLoading: 'Canlı kurlar yükleniyor…',
+      byCurrency: 'Para birimine göre',
+      dayChange: '24s',
     },
     converter: {
       title: 'Döviz çevirici',
@@ -417,6 +419,8 @@ const tr: TranslationKeys = {
       result: 'Sonuç',
       swap: 'Çevir',
       rateLine: '1 {from} = {value} {to}',
+      trend: '7 günlük trend',
+      quickAmounts: 'Hızlı',
     },
     totalBalance: 'Toplam Bakiye',
     monthlyIncome: 'Aylık Gelir',

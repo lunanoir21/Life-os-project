@@ -102,6 +102,63 @@ export function useExchangeRates(base: string = 'USD') {
   })
 }
 
+// ─── Historical timeseries (for sparklines and day-over-day deltas) ──
+
+export type RateHistory = {
+  /** ISO start date of the window the data covers. */
+  start: string
+  /** ISO end date. */
+  end: string
+  /** From → To pair quoted in the response. */
+  from: string
+  to: string
+  /** Sorted ascending: [{ date: 'yyyy-mm-dd', rate: number }, …] */
+  points: { date: string; rate: number }[]
+}
+
+async function fetchHistory(from: string, to: string, days: number): Promise<RateHistory> {
+  // Frankfurter timeseries endpoint: /<start>..<end>?from=X&to=Y
+  // Use UTC dates to avoid off-by-one when the user's clock crosses midnight.
+  const end = new Date()
+  const start = new Date(end)
+  start.setUTCDate(start.getUTCDate() - Math.max(1, days))
+  const iso = (d: Date) => d.toISOString().slice(0, 10)
+  const url = `${FRANKFURTER}/${iso(start)}..${iso(end)}?from=${encodeURIComponent(from.toUpperCase())}&to=${encodeURIComponent(to.toUpperCase())}`
+  const res = await fetch(url, { headers: { Accept: 'application/json' } })
+  if (!res.ok) throw new Error(`Failed to load rate history: ${res.status}`)
+  const json = (await res.json()) as { base: string; start_date: string; end_date: string; rates: Record<string, Record<string, number>> }
+  const upperTo = to.toUpperCase()
+  const points = Object.entries(json.rates)
+    .map(([date, table]) => ({ date, rate: table[upperTo] }))
+    .filter(p => typeof p.rate === 'number')
+    .sort((a, b) => a.date.localeCompare(b.date))
+  return {
+    start: json.start_date,
+    end: json.end_date,
+    from: json.base,
+    to: upperTo,
+    points,
+  }
+}
+
+/**
+ * Historical daily rates between two currencies. Used to draw sparkline
+ * trends and to compute the most-recent day-over-day delta badge. Cached
+ * for an hour because Frankfurter only updates once per business day and
+ * historical points are immutable.
+ */
+export function useExchangeRateHistory(from: string, to: string, days: number = 7) {
+  return useQuery<RateHistory>({
+    queryKey: ['exchange-rate-history', from.toUpperCase(), to.toUpperCase(), days],
+    queryFn: () => fetchHistory(from, to, days),
+    staleTime: 60 * 60 * 1000,
+    gcTime: 24 * 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 1,
+    enabled: from.toUpperCase() !== to.toUpperCase(),
+  })
+}
+
 /**
  * Convert `amount` from `from` to `to` using a fetched rate table.
  * The table is keyed off whatever base the user requested; we pivot

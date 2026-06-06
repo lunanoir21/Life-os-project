@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import {
   Plus,
   Wallet,
@@ -28,15 +28,72 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts'
 import { motion } from 'framer-motion'
 import type { FinanceAccount, Transaction, TransactionCategory, Budget } from '@/stores/finance-store'
 import { useAppStore } from '@/stores/app-store'
 import { useFinanceAccounts, useFinanceTransactions, useFinanceCategories, useCreateTransaction, useDeleteTransaction, useCreateAccount } from '@/lib/api/hooks'
 import { useTranslation } from '@/lib/i18n'
 import { showToast } from '@/lib/toast'
-import { SUPPORTED_CURRENCIES, useExchangeRates, convert, formatCurrency, symbolFor } from '@/lib/finance/currency'
+import { SUPPORTED_CURRENCIES, useExchangeRates, useExchangeRateHistory, convert, formatCurrency, symbolFor } from '@/lib/finance/currency'
 function cn(...inputs: (string | undefined | false)[]) { return inputs.filter(Boolean).join(' ') }
+
+/**
+ * Smoothly animate a number from its previous value to `target` over
+ * `duration` ms. Uses ease-out-cubic and `requestAnimationFrame`, so it
+ * adapts to the user's refresh rate without external dependencies.
+ */
+function useCountUp(target: number, duration = 800) {
+  const [value, setValue] = useState(target)
+  const fromRef = useRef(target)
+  useEffect(() => {
+    const from = fromRef.current
+    if (from === target) return
+    const start = performance.now()
+    let raf = 0
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / duration)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setValue(from + (target - from) * eased)
+      if (t < 1) raf = requestAnimationFrame(step)
+      else fromRef.current = target
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [target, duration])
+  return value
+}
+
+/**
+ * Mini sparkline area chart — no axes, no tooltip, just the trend line
+ * with a soft gradient fill. Sized to fill its container.
+ */
+function Sparkline({ data, color, height = 36 }: { data: { date: string; rate: number }[]; color: string; height?: number }) {
+  if (!data.length) return null
+  const gradientId = `spark-${color.replace('#', '')}`
+  return (
+    <div style={{ width: '100%', height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity={0.35} />
+              <stop offset="100%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <Area
+            type="monotone"
+            dataKey="rate"
+            stroke={color}
+            strokeWidth={1.5}
+            fill={`url(#${gradientId})`}
+            isAnimationActive={false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
 
 // Map API data to local types
 function mapApiAccount(a: Record<string, unknown>): FinanceAccount {
@@ -214,6 +271,50 @@ export function FinancePage() {
       .map(c => ({ code: c, rate: ratesData.rates[c] }))
       .filter(r => typeof r.rate === 'number')
   }, [ratesData, baseCurrency])
+
+  // Convert each account's native balance into the base currency, then
+  // bucket by currency so we can draw a "what's in each currency" bar.
+  const balancesByCurrency = useMemo(() => {
+    const map = new Map<string, { native: number; base: number }>()
+    for (const a of accounts) {
+      const code = (a.currency || 'USD').toUpperCase()
+      const inBase = convert(a.balance, code, baseCurrency, ratesData) ?? a.balance
+      const prev = map.get(code) ?? { native: 0, base: 0 }
+      map.set(code, { native: prev.native + a.balance, base: prev.base + inBase })
+    }
+    return Array.from(map.entries())
+      .map(([code, v]) => ({ code, native: v.native, base: v.base }))
+      .filter(b => Math.abs(b.base) > 0.005)
+      .sort((a, b) => Math.abs(b.base) - Math.abs(a.base))
+  }, [accounts, baseCurrency, ratesData])
+
+  const totalAbsBase = balancesByCurrency.reduce((sum, b) => sum + Math.abs(b.base), 0)
+
+  // 7-day history for the active converter pair, used for the sparkline
+  // and the day-over-day delta badge in the converter card.
+  const { data: convHistory } = useExchangeRateHistory(convFrom, convTo, 7)
+  const convDelta = useMemo(() => {
+    const pts = convHistory?.points
+    if (!pts || pts.length < 2) return null
+    const first = pts[0].rate
+    const last = pts[pts.length - 1].rate
+    if (!first) return null
+    const pct = ((last - first) / first) * 100
+    return { pct, up: pct >= 0 }
+  }, [convHistory])
+
+  // Animated count-up on the headline number so big changes feel alive
+  // instead of snapping to the new value on every refresh.
+  const animatedTotal = useCountUp(totalBalanceBase, 700)
+
+  // Stable per-code colors for the breakdown bar — avoid muddy palettes
+  // by leaning on the curated currency catalog order.
+  const CURRENCY_COLORS: Record<string, string> = {
+    USD: '#10b981', EUR: '#3b82f6', GBP: '#8b5cf6', TRY: '#ef4444',
+    JPY: '#f59e0b', CHF: '#06b6d4', CAD: '#f97316', AUD: '#ec4899',
+    CNY: '#a855f7', INR: '#14b8a6',
+  }
+  const colorFor = (code: string) => CURRENCY_COLORS[code] ?? '#94a3b8'
 
   const filteredTransactions = useMemo(() => {
     if (!searchQuery) return transactions
@@ -398,8 +499,11 @@ export function FinancePage() {
             {isLoading ? (
               <Skeleton className="h-10 w-56" />
             ) : (
-              <h2 className="text-3xl md:text-[40px] font-semibold tracking-tight">
-                {formatCurrency(totalBalanceBase, baseCurrency)}
+              <h2
+                className="text-3xl md:text-[44px] font-semibold tracking-tight bg-clip-text text-transparent leading-none tabular-nums"
+                style={{ backgroundImage: `linear-gradient(180deg, var(--foreground) 0%, ${accentHex} 140%)` }}
+              >
+                {formatCurrency(animatedTotal, baseCurrency)}
               </h2>
             )}
             <p className="text-[11px] text-muted-foreground/70 mt-1.5">
@@ -407,6 +511,47 @@ export function FinancePage() {
                 : ratesLoading || !ratesData ? t('finance.hero.ratesLoading')
                 : t('finance.hero.ratesUpdated', { date: ratesData.date })}
             </p>
+
+            {/* Per-currency breakdown bar — proportional segments coloured
+                by currency; click-to-filter would be a natural extension. */}
+            {balancesByCurrency.length > 1 && totalAbsBase > 0 && (
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
+                    {t('finance.hero.byCurrency')}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground/40 tabular-nums">{balancesByCurrency.length}</span>
+                </div>
+                <div className="flex h-2 w-full max-w-md rounded-full overflow-hidden bg-muted/30">
+                  {balancesByCurrency.map(b => {
+                    const pct = (Math.abs(b.base) / totalAbsBase) * 100
+                    return (
+                      <div
+                        key={b.code}
+                        className="h-full"
+                        style={{ width: `${pct}%`, background: colorFor(b.code) }}
+                        title={`${b.code} · ${formatCurrency(b.native, b.code)} (${pct.toFixed(1)}%)`}
+                      />
+                    )
+                  })}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5 max-w-md">
+                  {balancesByCurrency.map(b => {
+                    const pct = (Math.abs(b.base) / totalAbsBase) * 100
+                    return (
+                      <span
+                        key={b.code}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-border/60 px-2 py-0.5 text-[10px] font-medium"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: colorFor(b.code) }} />
+                        <span className="font-mono">{b.code}</span>
+                        <span className="text-muted-foreground/60 tabular-nums">{pct.toFixed(0)}%</span>
+                      </span>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* KPI rail — income / expense / savings, all in base currency */}
@@ -486,6 +631,29 @@ export function FinancePage() {
               <h3 className="text-sm font-semibold">{t('finance.converter.title')}</h3>
               <p className="text-[11px] text-muted-foreground/70 truncate">{t('finance.converter.subtitle')}</p>
             </div>
+          </div>
+
+          {/* Quick-amount preset chips — common amounts in the FROM currency. */}
+          <div className="flex items-center gap-1.5 mb-3">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 mr-1">
+              {t('finance.converter.quickAmounts')}
+            </span>
+            {[100, 500, 1000, 5000, 10000].map(preset => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => setConvAmount(String(preset))}
+                className={cn(
+                  'h-6 px-2 rounded-full text-[11px] font-mono tabular-nums transition-colors',
+                  parseFloat(convAmount) === preset
+                    ? 'text-white'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/40 border border-border/60',
+                )}
+                style={parseFloat(convAmount) === preset ? { backgroundColor: accentHex } : undefined}
+              >
+                {preset.toLocaleString('en-US')}
+              </button>
+            ))}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-end gap-3">
@@ -578,6 +746,37 @@ export function FinancePage() {
                 to: convTo,
               })}
             </p>
+          )}
+
+          {/* 7-day rate trend — only when we actually have ≥2 historical
+              points and the pair isn't degenerate (e.g. USD → USD). */}
+          {convHistory && convHistory.points.length > 1 && (
+            <div className="mt-3 rounded-lg border border-border/60 bg-muted/20 px-3 pt-2.5 pb-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
+                  {t('finance.converter.trend')}
+                </span>
+                {convDelta && (
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-0.5 text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded-full',
+                    )}
+                    style={{
+                      color: convDelta.up ? accentHex : '#ef4444',
+                      backgroundColor: convDelta.up ? `${accentHex}1a` : '#ef444418',
+                    }}
+                  >
+                    {convDelta.up ? '▲' : '▼'}
+                    {Math.abs(convDelta.pct).toFixed(2)}%
+                  </span>
+                )}
+              </div>
+              <Sparkline
+                data={convHistory.points}
+                color={convDelta?.up === false ? '#ef4444' : accentHex}
+                height={40}
+              />
+            </div>
           )}
         </CardContent>
       </Card>

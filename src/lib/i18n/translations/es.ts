@@ -391,6 +391,8 @@ const es: TranslationKeys = {
       ratesUpdated: 'Tipos BCE · {date}',
       ratesUnavailable: 'Tipos no disponibles',
       ratesLoading: 'Cargando tipos…',
+      byCurrency: 'Por divisa',
+      dayChange: '24h',
     },
     converter: {
       title: 'Conversor de divisas',
@@ -401,6 +403,8 @@ const es: TranslationKeys = {
       result: 'Resultado',
       swap: 'Invertir',
       rateLine: '1 {from} = {value} {to}',
+      trend: 'Tendencia 7 días',
+      quickAmounts: 'Rápido',
     },
     totalBalance: 'Saldo total',
     monthlyIncome: 'Ingresos mensuales',

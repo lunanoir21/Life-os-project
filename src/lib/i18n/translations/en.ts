@@ -407,6 +407,8 @@ const en = {
       ratesUpdated: 'ECB rates · {date}',
       ratesUnavailable: 'Live rates unavailable',
       ratesLoading: 'Loading live rates…',
+      byCurrency: 'By currency',
+      dayChange: '24h',
     },
     converter: {
       title: 'Currency converter',
@@ -417,6 +419,8 @@ const en = {
       result: 'Result',
       swap: 'Swap',
       rateLine: '1 {from} = {value} {to}',
+      trend: '7-day trend',
+      quickAmounts: 'Quick',
     },
     totalBalance: 'Total Balance',
     monthlyIncome: 'Monthly Income',
