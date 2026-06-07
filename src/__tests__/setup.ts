@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom'
-import { vi } from 'vitest'
+import { vi, beforeAll, afterEach, afterAll } from 'vitest'
+import { server } from './mocks/server'
 
 // Mock localStorage for Zustand persist middleware
 const localStorageMock = {
@@ -12,3 +13,8 @@ const localStorageMock = {
 }
 
 global.localStorage = localStorageMock as any
+
+// Setup MSW
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }))
+afterEach(() => server.resetHandlers())
+afterAll(() => server.close())

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import {
   CheckSquare,
   StickyNote,
@@ -51,7 +51,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Switch } from '@/components/ui/switch'
 import { useAppStore } from '@/stores/app-store'
 import { useTranslation } from '@/lib/i18n'
-import { useDashboard, useTasks, useEvents, useHabits, useCreateTask, useCreateNote, useCreateHabit } from '@/lib/api/hooks'
+import { useDashboard, useTasks, useEvents, useHabits, useCreateTask, useCreateNote, useCreateHabit, useDashboardWidgets, useSaveDashboardWidgets } from '@/lib/api/hooks'
 import { showToast } from '@/lib/toast'
 import { JournalPrompts } from '@/components/lifeos/dashboard/journal-prompts'
 import { WeeklyReview } from '@/components/lifeos/dashboard/weekly-review'
@@ -200,12 +200,50 @@ export function DashboardPage() {
     'journal-prompts', 'onboarding-tips', 'ai-insights', 'daily-planner',
   ]
 
+  // ── DB persistence for widget layout ────────────────────────────────────
+  const { data: dbWidgets, isSuccess: dbWidgetsLoaded } = useDashboardWidgets()
+  const saveWidgetsMutation = useSaveDashboardWidgets()
+  // Track whether we have already applied the DB snapshot to local state.
+  const dbSyncedRef = useRef(false)
+  // Debounce timer ref for saving changes.
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   // Widget order state — derive from dashboardWidgets + any missing ids appended
   const [widgetOrder, setWidgetOrder] = useState<string[]>(() => {
     const existing = dashboardWidgets.filter(id => allWidgetIds.includes(id))
     const missing = allWidgetIds.filter(id => !existing.includes(id))
     return [...existing, ...missing]
   })
+
+  // Once the DB snapshot arrives, apply it (overrides localStorage).
+  // Only runs once; subsequent changes are pushed TO the DB, not from it.
+  useEffect(() => {
+    if (dbWidgetsLoaded && dbWidgets && dbWidgets.widgets.length > 0 && !dbSyncedRef.current) {
+      dbSyncedRef.current = true
+      const saved = dbWidgets.widgets
+      setDashboardWidgets(saved)
+      const missing = allWidgetIds.filter(id => !saved.includes(id))
+      setWidgetOrder([...saved, ...missing])
+    } else if (dbWidgetsLoaded && !dbSyncedRef.current) {
+      // DB has no saved layout yet — mark as synced so saves flow normally.
+      dbSyncedRef.current = true
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dbWidgetsLoaded, dbWidgets])
+
+  // Debounced save: whenever dashboardWidgets changes after the initial DB
+  // sync, persist the new list to the database.
+  useEffect(() => {
+    if (!dbSyncedRef.current) return
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      saveWidgetsMutation.mutate(dashboardWidgets)
+    }, 800)
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dashboardWidgets])
 
   const widgetLabelMap = useMemo(() => ({
     'day-progress': t('dashboard.widgetDayProgressBar'),

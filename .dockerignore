@@ -2,6 +2,8 @@
 node_modules
 .next
 out
+backend/target
+target
 
 # Local databases & env
 *.db
@@ -19,12 +21,6 @@ data
 .github
 .vscode
 .idea
-
-# Docker files themselves
-Dockerfile
-.dockerignore
-docker-compose.yml
-docker-entrypoint.sh
 
 # Logs & misc
 *.log

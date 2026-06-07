@@ -342,6 +342,9 @@ model Habit {
   unit        String?
   reminderEnabled Boolean @default(false)
   reminderTime    String?
+  /// Number of consecutive missed days that don't break the streak.
+  /// 0 = strict (default), 1 = forgive a single missed day, etc.
+  gapForgiveness  Int     @default(0)
   archived    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

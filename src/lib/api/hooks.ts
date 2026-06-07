@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiGet, apiPost, apiPatch, apiDelete } from './client'
+import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from './client'
 
 // ============================================
 // Dashboard
@@ -609,5 +609,29 @@ export function useUpdateProfile() {
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => apiPatch('/api/profile', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['profile'] }),
+  })
+}
+
+// ============================================
+// Dashboard Widget Layout (DB persistence)
+// ============================================
+
+/** Load saved widget order from the database.
+ *  Returns `{ widgets: string[] }` — empty array = no saved layout yet. */
+export function useDashboardWidgets() {
+  return useQuery({
+    queryKey: ['dashboard-widgets'],
+    queryFn: () => apiGet<{ widgets: string[] }>('/api/dashboard/widgets'),
+    staleTime: Infinity, // layout rarely changes — no need to re-fetch
+  })
+}
+
+/** Persist widget order to the database. */
+export function useSaveDashboardWidgets() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (widgets: string[]) =>
+      apiPut('/api/dashboard/widgets', { widgets }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['dashboard-widgets'] }),
   })
 }

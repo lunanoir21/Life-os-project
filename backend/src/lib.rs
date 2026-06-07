@@ -22,10 +22,11 @@ mod profile;
 mod projects;
 mod search;
 mod tags;
-mod tasks;
+pub mod tasks;
 mod time_entries;
 mod utils;
 mod weekly_review;
+mod widgets;
 
 use axum::{
     extract::{DefaultBodyLimit, Request},
@@ -247,6 +248,10 @@ pub fn build_app(pool: SqlitePool) -> Router {
         )
         // Analytics
         .route("/api/dashboard", get(dashboard::get_dashboard))
+        .route(
+            "/api/dashboard/widgets",
+            get(widgets::get_widgets).put(widgets::save_widgets),
+        )
         .route("/api/notifications", get(notifications::get_notifications))
         .route("/api/insights", get(insights::get_insights))
         .route("/api/ai/insights", get(insights::get_ai_insights))

@@ -302,10 +302,31 @@ function EmptyState() {
 
 // ─── Main Component ─────────────────────────────────────────────────
 
+// Content-based stable key — backend IDs change every request, so we hash
+// type+module+description to survive page reloads and request churn.
+function notifKey(n: NotificationItem): string {
+  return `${n.type}|${n.module}|${n.description}`
+}
+
+const READ_STORAGE_KEY = 'lifeos-notif-read'
+const READ_MAX_KEEP = 200 // cap stored entries to avoid unbounded growth
+
 export function NotificationCenter() {
   const { data, isLoading } = useNotifications()
   const { setActiveModule } = useAppStore()
-  const [readIds, setReadIds] = useState<Set<string>>(new Set())
+  // Read state is stored as a content-key set, persisted to localStorage so
+  // marking-as-read survives page reloads while the notification still exists.
+  const [readKeys, setReadKeys] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set()
+    try {
+      const raw = localStorage.getItem(READ_STORAGE_KEY)
+      if (!raw) return new Set()
+      const arr = JSON.parse(raw) as string[]
+      return new Set(arr)
+    } catch {
+      return new Set()
+    }
+  })
   const [open, setOpen] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -325,20 +346,45 @@ export function NotificationCenter() {
     }
   }, [soundEnabled])
 
-  // Mark a single notification as read
-  const markRead = useCallback((id: string) => {
-    setReadIds((prev) => new Set(prev).add(id))
-  }, [])
+  // Persist read keys to localStorage
+  useEffect(() => {
+    try {
+      const arr = Array.from(readKeys).slice(-READ_MAX_KEEP)
+      localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(arr))
+    } catch {
+      // ignore localStorage errors
+    }
+  }, [readKeys])
+
+  // Mark a single notification as read (by content key, not transient id)
+  const markRead = useCallback(
+    (id: string) => {
+      const n = notifications.find((x) => x.id === id)
+      if (!n) return
+      const key = notifKey(n)
+      setReadKeys((prev) => {
+        if (prev.has(key)) return prev
+        const next = new Set(prev)
+        next.add(key)
+        return next
+      })
+    },
+    [notifications],
+  )
 
   // Mark all as read
   const markAllRead = useCallback(() => {
-    setReadIds(new Set(notifications.map((n) => n.id)))
+    setReadKeys((prev) => {
+      const next = new Set(prev)
+      for (const n of notifications) next.add(notifKey(n))
+      return next
+    })
   }, [notifications])
 
   // Apply read state
   const enrichedNotifications = notifications.map((n) => ({
     ...n,
-    clientRead: n.read || readIds.has(n.id),
+    clientRead: n.read || readKeys.has(notifKey(n)),
   }))
 
   const unreadCount = enrichedNotifications.filter((n) => !n.clientRead).length

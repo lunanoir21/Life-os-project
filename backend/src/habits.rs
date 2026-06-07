@@ -57,6 +57,8 @@ pub(crate) struct Habit {
     unit: Option<String>,
     reminder_enabled: bool,
     reminder_time: Option<String>,
+    /// Consecutive missed days that don't break the streak.  0 = strict.
+    gap_forgiveness: i64,
     archived: bool,
     created_at: PrismaDateTime,
     updated_at: PrismaDateTime,
@@ -85,6 +87,7 @@ fn habit_from_row(r: &sqlx::sqlite::SqliteRow) -> Result<Habit, sqlx::Error> {
         unit: r.try_get("unit")?,
         reminder_enabled: r.try_get::<i64, _>("reminderEnabled")? != 0,
         reminder_time: r.try_get("reminderTime")?,
+        gap_forgiveness: r.try_get::<i64, _>("gapForgiveness").unwrap_or(0),
         archived: r.try_get::<i64, _>("archived")? != 0,
         created_at: PrismaDateTime(r.try_get::<i64, _>("createdAt")?),
         updated_at: PrismaDateTime(r.try_get::<i64, _>("updatedAt")?),
@@ -191,8 +194,8 @@ pub async fn create_habit(
     let id = gen_id();
     let now = now_ms();
     sqlx::query(
-        "INSERT INTO Habit (id, name, description, icon, color, frequency, frequencyConfig, targetCount, unit, reminderEnabled, reminderTime, archived, createdAt, updatedAt) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO Habit (id, name, description, icon, color, frequency, frequencyConfig, targetCount, unit, reminderEnabled, reminderTime, gapForgiveness, archived, createdAt, updatedAt) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&id).bind(&name).bind(truthy_str(&body, "description"))
     .bind(truthy_str(&body, "icon")).bind(str_or(&body, "color", "#6b7280"))
@@ -200,7 +203,9 @@ pub async fn create_habit(
     .bind(body.get("targetCount").and_then(|v| v.as_i64()).unwrap_or(1))
     .bind(truthy_str(&body, "unit"))
     .bind(if body.get("reminderEnabled").and_then(|v| v.as_bool()).unwrap_or(false) { 1_i64 } else { 0_i64 })
-    .bind(truthy_str(&body, "reminderTime")).bind(0_i64).bind(now).bind(now)
+    .bind(truthy_str(&body, "reminderTime"))
+    .bind(body.get("gapForgiveness").and_then(|v| v.as_i64()).unwrap_or(0).max(0))
+    .bind(0_i64).bind(now).bind(now)
     .execute(&st.db).await?;
     let row = sqlx::query("SELECT * FROM Habit WHERE id = ?")
         .bind(&id)
@@ -276,6 +281,9 @@ pub async fn update_habit(
     }
     if let Some(v) = patch_str(&body, "reminderTime") {
         crate::push_set!(qb, first, "reminderTime = ", v);
+    }
+    if let Some(v) = body.get("gapForgiveness").and_then(|v| v.as_i64()) {
+        crate::push_set!(qb, first, "gapForgiveness = ", v.max(0));
     }
     if let Some(v) = patch_bool(&body, "archived") {
         crate::push_set!(qb, first, "archived = ", if v { 1_i64 } else { 0_i64 });

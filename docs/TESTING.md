@@ -4,18 +4,84 @@ This document describes the test infrastructure for Life OS, including both back
 
 ## Test Coverage Summary
 
-### Backend (Rust) - 30 Tests ✅
+### Backend (Rust) - 80+ Tests ✅
 - **Integration Tests**: 20 tests covering all backend modules
+- **Habits Tests**: 1 test (CRUD & Logging)
 - **Projects Tests**: 4 tests
-- **Tasks Tests**: 5 tests  
-- **Database Tests**: 1 test
+- **Tasks Tests**: 6 tests
+- **Notes Tests**: 6 tests ✨ NEW
+- **Journal Tests**: 7 tests ✨ NEW
+- **Finance Tests**: 11 tests ✨ NEW
+- **Goals Tests**: 7 tests ✨ NEW
+- **Events Tests**: 7 tests ✨ NEW
+- **Courses Tests**: 7 tests ✨ NEW
+- **Data Tests**: 8 tests ✨ NEW
+- **Search Tests**: 9 tests ✨ NEW
+- **Recurring Tasks Tests**: Tests
+- **Simple Test**: 1 test
 
-### Frontend (TypeScript/React) - 37 Tests ✅
-- **App Store Tests**: 17 tests for Zustand state management
-- **Utils Tests**: 7 tests for utility functions
-- **i18n Tests**: 13 tests for internationalization
+### Frontend (TypeScript/React) - 75+ Tests ✅
+- **App Store Tests**: 17 tests
+- **Task Store Tests**: 6 tests
+- **Note Store Tests**: 6 tests
+- **Habit Store Tests**: 4 tests
+- **Goal Store Tests**: 4 tests
+- **Finance Store Tests**: 3 tests
+- **Journal Store Tests**: 3 tests
+- **Calendar Store Tests**: 3 tests
+- **Learning Store Tests**: 3 tests
+- **Utils Tests**: 7 tests 
+- **i18n Tests**: 13 tests
+- **Component Tests**: ✨ NEW
+  - **TasksPage Tests**: 6 tests
+  - **DashboardPage Tests**: 9 tests
+  - **FinancePage Tests**: 10 tests
+  - **HabitsPage Tests**: 12 tests
 
-**Total: 67 automated tests**
+### E2E (Playwright) - 1 Test ✅
+- **Dashboard**: Basic smoke test
+
+**Total: 156+ automated tests** 🎉
+
+---
+
+## Bundle Analysis
+
+We use `@next/bundle-analyzer` to monitor the size and performance of our frontend bundles.
+
+### Running Analysis
+
+```bash
+bun run analyze
+```
+
+This will build the application and open three interactive visualizations in your browser:
+1.  **Client bundle**: JS sent to the browser
+2.  **Server bundle**: Node.js/Edge runtime code
+3.  **Edge bundle**: Middleware and edge routes
+
+---
+
+## E2E Tests (Playwright)
+
+### Architecture
+
+We use **Playwright** for end-to-end testing, ensuring that critical user journeys work across all major browsers.
+
+### Test Structure
+
+```
+e2e/
+└── dashboard.spec.ts   # Smoke tests for the main application dashboard
+playwright.config.ts    # Browser and server configuration
+```
+
+### Running E2E Tests
+
+```bash
+bun run test:e2e        # Run all E2E tests (headless)
+bun run test:e2e:ui     # Open Playwright UI for interactive testing
+```
 
 ---
 
@@ -39,10 +105,20 @@ backend/
 │   ├── common/
 │   │   └── mod.rs      # Test fixtures & helpers
 │   ├── schema.sql      # Generated SQLite schema
-│   ├── integration_test.rs  # 20 tests covering all modules
-│   ├── projects_test.rs     # 4 project CRUD tests
-│   ├── tasks_test.rs        # 5 task CRUD tests
-│   └── simple_test.rs       # 1 database setup verification test
+│   ├── integration_test.rs     # 20 tests covering all modules
+│   ├── projects_test.rs        # 4 project CRUD tests
+│   ├── tasks_test.rs           # 6 task CRUD tests
+│   ├── notes_test.rs           # 6 notes CRUD tests ✨ NEW
+│   ├── journal_test.rs         # 7 journal CRUD tests ✨ NEW
+│   ├── finance_test.rs         # 11 finance CRUD tests ✨ NEW
+│   ├── goals_test.rs           # 7 goals CRUD tests ✨ NEW
+│   ├── events_test.rs          # 7 events CRUD tests ✨ NEW
+│   ├── courses_test.rs         # 7 courses CRUD tests ✨ NEW
+│   ├── data_test.rs            # 8 data export/import tests ✨ NEW
+│   ├── search_test.rs          # 9 search tests ✨ NEW
+│   ├── habits_test.rs          # 1 habits test
+│   ├── recurring_tasks_test.rs # Recurring tasks tests
+│   └── simple_test.rs          # 1 database setup verification test
 └── Cargo.toml          # Test dependencies: tower, http-body-util, tempfile
 ```
 
@@ -120,6 +196,8 @@ let (app, _temp_db) = common::setup_test_app().await;
 The frontend test suite uses:
 - **Vitest**: Fast test runner with native ESM support
 - **@testing-library/react**: Component testing utilities
+- **@testing-library/user-event**: User interaction simulation
+- **MSW (Mock Service Worker)**: API mocking for component tests ✨ NEW
 - **jsdom**: Browser environment simulation
 - **@testing-library/jest-dom**: Extended matchers
 
@@ -128,13 +206,23 @@ The frontend test suite uses:
 ```
 src/
 ├── __tests__/
-│   ├── setup.ts              # Global test setup (localStorage mock)
+│   ├── setup.ts                    # Global test setup + MSW
+│   ├── mocks/                      # ✨ NEW
+│   │   ├── handlers.ts             # MSW API mock handlers
+│   │   └── server.ts               # MSW server setup
+│   ├── utils/                      # ✨ NEW
+│   │   └── test-utils.tsx          # Custom render + helpers
+│   ├── components/                 # ✨ NEW
+│   │   ├── tasks-page.test.tsx     # TasksPage component tests
+│   │   ├── dashboard-page.test.tsx # DashboardPage component tests
+│   │   ├── finance-page.test.tsx   # FinancePage component tests
+│   │   └── habits-page.test.tsx    # HabitsPage component tests
 │   ├── stores/
-│   │   └── app-store.test.ts # 17 Zustand store tests
-│   ├── lib/
-│   │   ├── utils.test.ts     # 7 utility function tests
-│   │   └── i18n.test.ts      # 13 i18n tests
-└── vitest.config.ts          # Vitest configuration
+│   │   └── app-store.test.ts       # 17 Zustand store tests
+│   └── lib/
+│       ├── utils.test.ts           # 7 utility function tests
+│       └── i18n.test.ts            # 13 i18n tests
+└── vitest.config.ts                # Vitest configuration
 ```
 
 ### Running Frontend Tests
@@ -156,6 +244,12 @@ bun run build             # Full build (includes type checking)
 - ✅ Sidebar, focus mode, command palette state
 - ✅ Language and widget configuration
 
+**Component Tests:** ✨ NEW
+- ✅ **TasksPage**: Rendering, task list, CRUD operations, filtering
+- ✅ **DashboardPage**: Stats display, widgets, quick actions, API integration
+- ✅ **FinancePage**: Accounts, transactions, overview, charts
+- ✅ **HabitsPage**: Habit list, progress tracking, logging, streaks
+
 **Utility Functions:**
 - ✅ `cn()` class name merging
 - ✅ Tailwind conflict resolution
@@ -169,11 +263,20 @@ bun run build             # Full build (includes type checking)
 - ✅ `getTranslation()` helper function
 - ✅ Metadata validation (codes, labels, flags)
 
+**API Mocking with MSW:** ✨ NEW
+- ✅ Tasks API endpoints
+- ✅ Habits API endpoints
+- ✅ Projects API endpoints
+- ✅ Notes API endpoints
+- ✅ Finance API endpoints (accounts, transactions, categories, budgets)
+- ✅ Dashboard API endpoint
+- ✅ Profile API endpoint
+
 ### Known Limitations
 
-- **React Hooks**: `useTranslation` tests are limited because hooks can't be called outside React components. We test the non-hook functions instead.
-- **Component Tests**: No component smoke tests yet (setup wizard, settings) - these would require complex mocking of TanStack Query and API calls.
-- **E2E Tests**: No Playwright tests included (lower priority).
+- **Component Coverage**: Additional components need tests (NotesPage, JournalPage, GoalsPage, EventsPage)
+- **Backend Edge Cases**: Need more negative testing for error paths and race conditions
+- **E2E Coverage**: Limited to dashboard smoke test, needs expansion
 
 ---
 
@@ -262,8 +365,26 @@ Backend:
 
 1. **Unit tests** for pure functions: `src/__tests__/lib/`
 2. **Store tests**: `src/__tests__/stores/`
-3. Mock `localStorage` in `setup.ts` if needed
-4. Use `describe/it/expect` from Vitest
+3. **Component tests**: `src/__tests__/components/` ✨ NEW
+4. Use **MSW** for API mocking in component tests ✨ NEW
+5. Use `test-utils.tsx` helpers for consistent setup ✨ NEW
+6. Mock `localStorage` in `setup.ts` if needed
+7. Use `describe/it/expect` from Vitest
+
+**Example Component Test:**
+```tsx
+import { renderWithProviders, screen } from '../utils/test-utils'
+
+describe('MyComponent', () => {
+  it('renders and fetches data', async () => {
+    renderWithProviders(<MyComponent />)
+    
+    await waitFor(() => {
+      expect(screen.getByText('Loaded Data')).toBeInTheDocument()
+    })
+  })
+})
+```
 
 ### Pre-commit Checklist
 
@@ -310,18 +431,21 @@ bun install
 ## Future Improvements
 
 ### Priority
-1. ✅ ~~Add backend integration tests~~ (DONE)
-2. ✅ ~~Add frontend unit tests~~ (DONE)
+1. ✅ ~~Add backend integration tests~~ (DONE - 80+ tests)
+2. ✅ ~~Add frontend unit tests~~ (DONE - 75+ tests)
 3. ✅ ~~Setup CI pipeline~~ (DONE)
-4. 🔄 Fix remaining Clippy warnings in backend
-5. 📝 Add component smoke tests (setup wizard, dashboard)
-6. 📝 Increase backend test coverage (edge cases, error paths)
+4. ✅ ~~Add MSW for API mocking~~ (DONE)
+5. ✅ ~~Add component tests~~ (DONE - 4 major pages)
+6. 🔄 Fix remaining Clippy warnings in backend
+7. 📝 Add more component tests (NotesPage, JournalPage, GoalsPage, EventsPage)
+8. 📝 Increase backend test coverage (edge cases, error paths)
 
 ### Optional
-- Add Playwright E2E tests (separate job, non-blocking)
+- Add more Playwright E2E tests (user journeys)
 - Add test coverage reporting (codecov.io)
 - Add mutation testing (stryker-mutator)
 - Add performance benchmarks
+- Add visual regression testing
 
 ---
 

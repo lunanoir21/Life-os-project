@@ -3,10 +3,12 @@ use axum::{
     http::StatusCode,
     Json,
 };
+use chrono::Datelike;
 use serde::Serialize;
 use serde_json::Value;
 use sqlx::{sqlite::SqliteRow, QueryBuilder, Row, Sqlite, SqlitePool};
 use std::collections::HashMap;
+use tokio::time::{interval, Duration};
 
 use crate::error::AppError;
 use crate::prisma_dt::PrismaDateTime;
@@ -676,4 +678,255 @@ pub async fn delete_task(
         .execute(&st.db)
         .await?;
     Ok(Json(serde_json::json!({ "success": true })))
+}
+
+// ---------------------------------------------------------------------------
+// Recurrence Worker - Automatic task recreation for recurring tasks
+// ---------------------------------------------------------------------------
+
+/// Spawn a background worker that checks for recurring tasks every hour
+/// and creates new instances when needed.
+pub fn spawn_recurrence_worker(pool: SqlitePool) {
+    tokio::spawn(async move {
+        // Check every hour
+        let mut ticker = interval(Duration::from_secs(3600));
+        
+        tracing::info!("🔄 Recurrence worker started - checking every hour");
+        
+        loop {
+            ticker.tick().await;
+            
+            match process_recurring_tasks(&pool).await {
+                Ok(count) => {
+                    if count > 0 {
+                        tracing::info!("✅ Processed {} recurring task(s)", count);
+                    }
+                }
+                Err(e) => {
+                    tracing::error!("❌ Error processing recurring tasks: {}", e);
+                }
+            }
+        }
+    });
+}
+
+/// Process all recurring tasks and create new instances as needed
+async fn process_recurring_tasks(db: &SqlitePool) -> Result<usize, sqlx::Error> {
+    let now = chrono::Utc::now();
+    let today_start = now.date_naive().and_hms_opt(0, 0, 0).unwrap();
+    let today_start_ms = today_start.and_utc().timestamp_millis();
+    
+    // Find all tasks with recurrence that are completed or have a due date in the past
+    let rows = sqlx::query(
+        "SELECT * FROM Task 
+         WHERE recurrence IS NOT NULL 
+         AND recurrence != ''
+         AND archived = 0
+         AND (status = 'done' OR dueDate < ?)"
+    )
+    .bind(today_start_ms)
+    .fetch_all(db)
+    .await?;
+    
+    let mut created_count = 0;
+    
+    for row in rows {
+        let task = task_from_row(&row)?;
+        
+        // Check if we should create a new instance
+        if should_create_new_instance(&task, today_start_ms)? {
+            match create_recurring_instance(db, &task).await {
+                Ok(_) => created_count += 1,
+                Err(e) => {
+                    tracing::warn!(
+                        "Failed to create recurring instance for task {}: {}", 
+                        task.id, e
+                    );
+                }
+            }
+        }
+    }
+    
+    Ok(created_count)
+}
+
+/// Determine if a new instance should be created based on recurrence rules
+fn should_create_new_instance(task: &Task, today_start_ms: i64) -> Result<bool, sqlx::Error> {
+    let recurrence = match &task.recurrence {
+        Some(r) if !r.is_empty() => r,
+        _ => return Ok(false),
+    };
+    
+    // If task is not completed yet, don't create a new instance
+    if task.status != "done" {
+        return Ok(false);
+    }
+    
+    // Get the completion date
+    let completed_ms = match task.completed_at {
+        Some(PrismaDateTime(ms)) => ms,
+        None => return Ok(false),
+    };
+    
+    // Calculate days since completion
+    let days_since_completion = (today_start_ms - completed_ms) / (1000 * 60 * 60 * 24);
+    
+    // Check recurrence type
+    match recurrence.as_str() {
+        "daily" => Ok(days_since_completion >= 1),
+        "weekly" => Ok(days_since_completion >= 7),
+        "monthly" => {
+            // For monthly, check if we're in a new month
+            let completed_date = chrono::DateTime::from_timestamp_millis(completed_ms)
+                .unwrap_or_default()
+                .date_naive();
+            let today = chrono::DateTime::from_timestamp_millis(today_start_ms)
+                .unwrap_or_default()
+                .date_naive();
+            
+            Ok(completed_date.year() != today.year() || completed_date.month() != today.month())
+        }
+        _ => Ok(false), // Unknown recurrence type
+    }
+}
+
+/// Create a new instance of a recurring task
+async fn create_recurring_instance(db: &SqlitePool, original: &Task) -> Result<String, sqlx::Error> {
+    let new_id = cuid::cuid1().map_err(|e| {
+        sqlx::Error::Io(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("ID generation failed: {}", e),
+        ))
+    })?;
+    
+    let now = PrismaDateTime::now().0;
+    
+    // Calculate new due date based on recurrence
+    let new_due_date = calculate_next_due_date(original)?;
+    
+    // Create the new task with status reset to 'todo'
+    sqlx::query(
+        "INSERT INTO Task \
+         (id, title, description, status, priority, dueDate, startDate, completedAt, \
+          estimatedMinutes, actualMinutes, recurrence, recurrenceConfig, position, archived, \
+          createdAt, updatedAt, projectId, parentTaskId) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(&new_id)
+    .bind(&original.title)
+    .bind(&original.description)
+    .bind("todo") // Reset status to todo
+    .bind(&original.priority)
+    .bind(new_due_date)
+    .bind(original.start_date.as_ref().map(|d| d.0))
+    .bind(Option::<i64>::None) // Clear completedAt
+    .bind(original.estimated_minutes)
+    .bind(Option::<i64>::None) // Clear actualMinutes
+    .bind(&original.recurrence)
+    .bind(&original.recurrence_config)
+    .bind(original.position)
+    .bind(0_i64) // archived = false
+    .bind(now)
+    .bind(now)
+    .bind(&original.project_id)
+    .bind(&original.parent_task_id)
+    .execute(db)
+    .await?;
+    
+    // Copy tags from original task
+    let tag_rows = sqlx::query("SELECT tagId FROM TaskTag WHERE taskId = ?")
+        .bind(&original.id)
+        .fetch_all(db)
+        .await?;
+    
+    for tag_row in tag_rows {
+        let tag_id: String = tag_row.try_get("tagId")?;
+        let task_tag_id = cuid::cuid1().map_err(|e| {
+            sqlx::Error::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("ID generation failed: {}", e),
+            ))
+        })?;
+        
+        sqlx::query("INSERT INTO TaskTag (id, taskId, tagId) VALUES (?, ?, ?)")
+            .bind(&task_tag_id)
+            .bind(&new_id)
+            .bind(&tag_id)
+            .execute(db)
+            .await?;
+    }
+    
+    tracing::info!(
+        "Created new recurring instance of task '{}' (original: {}, new: {})",
+        original.title,
+        original.id,
+        new_id
+    );
+    
+    Ok(new_id)
+}
+
+/// Calculate the next due date based on recurrence type
+fn calculate_next_due_date(task: &Task) -> Result<Option<i64>, sqlx::Error> {
+    let recurrence = match &task.recurrence {
+        Some(r) if !r.is_empty() => r,
+        _ => return Ok(None),
+    };
+    
+    // Use current due date as base, or today if none exists
+    let base_ms = task.due_date.as_ref().map(|d| d.0).unwrap_or_else(|| {
+        let now = chrono::Utc::now();
+        let today = now.date_naive().and_hms_opt(0, 0, 0).unwrap();
+        today.and_utc().timestamp_millis()
+    });
+    
+    let base_date = chrono::DateTime::from_timestamp_millis(base_ms)
+        .ok_or_else(|| {
+            sqlx::Error::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Invalid timestamp",
+            ))
+        })?;
+    
+    let next_date = match recurrence.as_str() {
+        "daily" => base_date + chrono::Duration::days(1),
+        "weekly" => base_date + chrono::Duration::weeks(1),
+        "monthly" => {
+            // Add one month (handling edge cases like Jan 31 -> Feb 28)
+            let mut next = base_date;
+            let current_month = next.month();
+            let current_day = next.day();
+            
+            // Increment month
+            if current_month == 12 {
+                next = next
+                    .with_year(next.year() + 1)
+                    .and_then(|d| d.with_month(1))
+                    .unwrap_or(next);
+            } else {
+                next = next.with_month(current_month + 1).unwrap_or(next);
+            }
+            
+            // Handle day overflow (e.g., Jan 31 -> Feb 31 doesn't exist).
+            // Walk back from current_day until we find a valid day in the new month.
+            if let Some(d) = next.with_day(current_day) {
+                d
+            } else {
+                let mut day = current_day;
+                let mut found = next; // fallback: keep month change, day unchanged
+                loop {
+                    if day == 1 { break; }
+                    day -= 1;
+                    if let Some(d) = next.with_day(day) {
+                        found = d;
+                        break;
+                    }
+                }
+                found
+            }
+        }
+        _ => return Ok(None), // Unknown recurrence type
+    };
+    
+    Ok(Some(next_date.timestamp_millis()))
 }

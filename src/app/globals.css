@@ -1598,9 +1598,33 @@ html.theme-transitioning *::after {
   animation: page-enter 0.25s ease-out forwards;
 }
 
-/* Smooth color transitions for theme changes */
-body, .bg-background, .bg-card, .bg-muted, .bg-sidebar {
-  transition: background-color 0.3s ease, color 0.3s ease;
+/* Smooth color transitions for theme changes — covers everything that
+ * changes when the theme/accent flips so the UI eases rather than snaps.
+ * Excludes transform/opacity to avoid interfering with motion animations. */
+body,
+.bg-background, .bg-card, .bg-muted, .bg-sidebar, .bg-popover,
+.bg-accent, .bg-primary, .bg-secondary, .bg-destructive,
+.text-foreground, .text-muted-foreground, .text-primary, .text-card-foreground,
+.border, [class*="border-"],
+.shadow-card, .shadow-sm, .shadow-md, .shadow-lg {
+  transition:
+    background-color 200ms ease,
+    color 200ms ease,
+    border-color 200ms ease,
+    box-shadow 200ms ease,
+    fill 200ms ease,
+    stroke 200ms ease;
+}
+
+/* Respect users who ask for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  body, .bg-background, .bg-card, .bg-muted, .bg-sidebar, .bg-popover,
+  .bg-accent, .bg-primary, .bg-secondary, .bg-destructive,
+  .text-foreground, .text-muted-foreground, .text-primary, .text-card-foreground,
+  .border, [class*="border-"],
+  .shadow-card, .shadow-sm, .shadow-md, .shadow-lg {
+    transition: none !important;
+  }
 }
 
 /* Enhanced interactive states */

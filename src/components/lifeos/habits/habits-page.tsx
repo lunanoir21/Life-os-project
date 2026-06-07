@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   Target,
   Star,
+  Shield,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -69,6 +70,7 @@ function mapApiHabit(apiHabit: Record<string, unknown>) {
   }).filter(Boolean).sort().reverse()
 
   const targetCount = (apiHabit.targetCount as number) || 1
+  const gapForgiveness = (apiHabit.gapForgiveness as number) ?? 0
 
   // Get today's actual count
   const todayLog = logs.find((l: Record<string, unknown>) => {
@@ -77,20 +79,19 @@ function mapApiHabit(apiHabit: Record<string, unknown>) {
   })
   const todayCount = (todayLog?.count as number) || 0
 
-  // Streak: allow 1-day gap (streak protection)
+  // Streak: user-configurable gap forgiveness (0 = strict, N = forgive N missed days)
   let streak = 0
   const checkDate = new Date()
-  let allowedGap = 1 // one missed day is forgiven per streak
+  let allowedGap = gapForgiveness
   for (let i = 0; i < 365; i++) {
     const dateStr = checkDate.toISOString().split('T')[0]
     if (logDates.includes(dateStr)) {
       streak++
       checkDate.setDate(checkDate.getDate() - 1)
     } else if (i === 0) {
-      // Today not yet logged — still OK (grace period)
+      // Today not yet logged — still OK (grace period for the current day)
       checkDate.setDate(checkDate.getDate() - 1)
     } else if (allowedGap > 0) {
-      // Allow one missed day per streak
       allowedGap--
       checkDate.setDate(checkDate.getDate() - 1)
     } else {
@@ -116,6 +117,7 @@ function mapApiHabit(apiHabit: Record<string, unknown>) {
     colorHex: color,
     frequency: (apiHabit.frequency as string) || 'daily',
     targetCount,
+    gapForgiveness,
     unit: (apiHabit.unit as string) || 'session',
     todayCount,
     tags: (apiHabit.tags as Record<string, unknown>[])?.map((t: Record<string, unknown>) => ((t.tag as Record<string, unknown>)?.name as string) || '').filter(Boolean) || [],
@@ -280,8 +282,8 @@ export function HabitsPage() {
   const [habitView, setHabitView] = useState<'list' | 'calendar' | 'analytics'>('list')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [editHabit, setEditHabit] = useState<{ id: string; name: string; description: string; frequency: string; color: string; icon: string; targetCount: number; unit: string } | null>(null)
-  const [newHabit, setNewHabit] = useState({ name: '', description: '', frequency: 'daily', color: '#10b981', icon: '✅', targetCount: 1, unit: 'session' })
+  const [editHabit, setEditHabit] = useState<{ id: string; name: string; description: string; frequency: string; color: string; icon: string; targetCount: number; unit: string; gapForgiveness: number } | null>(null)
+  const [newHabit, setNewHabit] = useState({ name: '', description: '', frequency: 'daily', color: '#10b981', icon: '✅', targetCount: 1, unit: 'session', gapForgiveness: 0 })
   const [soundIndicator, setSoundIndicator] = useState<string | null>(null)
 
   const today = new Date().toISOString().split('T')[0]
@@ -331,9 +333,10 @@ export function HabitsPage() {
       frequency: newHabit.frequency,
       targetCount: newHabit.targetCount,
       unit: newHabit.unit,
+      gapForgiveness: newHabit.gapForgiveness,
     }, {
       onSuccess: () => {
-        setNewHabit({ name: '', description: '', frequency: 'daily', color: '#10b981', icon: '✅', targetCount: 1, unit: 'session' })
+        setNewHabit({ name: '', description: '', frequency: 'daily', color: '#10b981', icon: '✅', targetCount: 1, unit: 'session', gapForgiveness: 0 })
         setCreateDialogOpen(false)
         showToast.success(t('toast.created'))
       }
@@ -341,7 +344,7 @@ export function HabitsPage() {
   }, [newHabit, createHabitMutation, t])
 
   const openEditDialog = useCallback((habit: typeof habits[0]) => {
-    setEditHabit({ id: habit.id, name: habit.name, description: habit.description, frequency: habit.frequency, color: habit.colorHex, icon: habit.icon, targetCount: habit.targetCount, unit: habit.unit })
+    setEditHabit({ id: habit.id, name: habit.name, description: habit.description, frequency: habit.frequency, color: habit.colorHex, icon: habit.icon, targetCount: habit.targetCount, unit: habit.unit, gapForgiveness: habit.gapForgiveness ?? 0 })
     setEditDialogOpen(true)
   }, [])
 
@@ -356,6 +359,7 @@ export function HabitsPage() {
       icon: editHabit.icon,
       targetCount: editHabit.targetCount,
       unit: editHabit.unit,
+      gapForgiveness: editHabit.gapForgiveness,
     }, {
       onSuccess: () => {
         setEditDialogOpen(false)
@@ -490,6 +494,19 @@ export function HabitsPage() {
                   <Input placeholder="glass, km, min..." value={editHabit.unit} onChange={e => setEditHabit(p => p && ({ ...p, unit: e.target.value }))} />
                 </div>
               </div>
+              {/* Gap forgiveness: how many missed days the streak survives */}
+              <div>
+                <label className="text-sm font-medium mb-1.5 flex items-center gap-1.5">
+                  <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+                  {t('habits.gapForgiveness')}
+                </label>
+                <div className="flex items-center gap-2">
+                  <button className="w-7 h-7 rounded border border-border flex items-center justify-center hover:bg-accent" onClick={() => setEditHabit(p => p && ({ ...p, gapForgiveness: Math.max(0, p.gapForgiveness - 1) }))}><Minus className="h-3 w-3" /></button>
+                  <span className="text-sm font-medium w-12 text-center tabular-nums">{editHabit.gapForgiveness}</span>
+                  <button className="w-7 h-7 rounded border border-border flex items-center justify-center hover:bg-accent" onClick={() => setEditHabit(p => p && ({ ...p, gapForgiveness: Math.min(7, p.gapForgiveness + 1) }))}><Plus className="h-3 w-3" /></button>
+                  <span className="text-xs text-muted-foreground ml-1">{t('habits.gapForgivenessHint')}</span>
+                </div>
+              </div>
             </div>
           )}
           <DialogFooter><DialogClose asChild><Button variant="outline">{t('cancel')}</Button></DialogClose><Button onClick={handleUpdateHabit} disabled={updateHabitMutation.isPending}>{t('save')}</Button></DialogFooter>
@@ -530,6 +547,19 @@ export function HabitsPage() {
                 <div>
                   <label className="text-sm font-medium mb-1.5 block">Birim</label>
                   <Input placeholder="glass, km, min..." value={newHabit.unit} onChange={e => setNewHabit(p => ({ ...p, unit: e.target.value }))} />
+                </div>
+              </div>
+              {/* Gap forgiveness for new habit */}
+              <div>
+                <label className="text-sm font-medium mb-1.5 flex items-center gap-1.5">
+                  <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+                  {t('habits.gapForgiveness')}
+                </label>
+                <div className="flex items-center gap-2">
+                  <button className="w-7 h-7 rounded border border-border flex items-center justify-center hover:bg-accent" onClick={() => setNewHabit(p => ({ ...p, gapForgiveness: Math.max(0, p.gapForgiveness - 1) }))}><Minus className="h-3 w-3" /></button>
+                  <span className="text-sm font-medium w-12 text-center tabular-nums">{newHabit.gapForgiveness}</span>
+                  <button className="w-7 h-7 rounded border border-border flex items-center justify-center hover:bg-accent" onClick={() => setNewHabit(p => ({ ...p, gapForgiveness: Math.min(7, p.gapForgiveness + 1) }))}><Plus className="h-3 w-3" /></button>
+                  <span className="text-xs text-muted-foreground ml-1">{t('habits.gapForgivenessHint')}</span>
                 </div>
               </div>
             </div>

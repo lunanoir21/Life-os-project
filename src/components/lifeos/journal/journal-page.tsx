@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
+import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import {
   Plus,
   Search,
@@ -22,7 +23,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog'
@@ -46,23 +46,16 @@ const moodConfigs: { value: JournalEntry['mood']; labelKey: string; icon: string
   { value: 'terrible', labelKey: 'journal.terrible', icon: '😢', color: 'text-red-700 dark:text-red-300', bg: 'bg-red-100 dark:bg-red-900/30', cardBg: 'bg-red-50 dark:bg-red-950/20', cardBorder: 'border-red-200 dark:border-red-800/30' },
 ]
 
-const journalTemplates = [
-  {
-    id: 'morning',
-    name: '☀️ Sabah Rutini',
-    content: 'Bugün odaklanacaklarım:\n1. \n2. \n3. \n\nBugün nasıl hissediyorum:\n\nBugünün en önemli önceliği:'
-  },
-  {
-    id: 'daily',
-    name: '📝 Günlük Yansıma',
-    content: 'Bugün iyi giden şeyler:\n\nBugün ne öğrendim:\n\nBugün neyi farklı yapabilirdim:\n\nYarın için notlar:'
-  },
-  {
-    id: 'weekly',
-    name: '📊 Haftalık Özet',
-    content: 'Bu hafta tamamladıklarım:\n\nBu hafta öğrendiklerim:\n\nBu hafta zorlayıcı olan şeyler:\n\nGelecek hafta için hedefler:\n1. \n2. \n3. '
-  },
-]
+/** Template definitions — names + content keys are resolved at render time
+ *  via the i18n helper, so all five locales get the right strings. */
+const journalTemplateIds = ['morning', 'daily', 'weekly'] as const
+type JournalTemplateId = typeof journalTemplateIds[number]
+
+const journalTemplateIcons: Record<JournalTemplateId, string> = {
+  morning: '☀️',
+  daily: '📝',
+  weekly: '📊',
+}
 
 const writingPrompts = [
   "What's one thing that made you smile today?",
@@ -293,17 +286,26 @@ export function JournalPage() {
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" size="sm" className="gap-1.5 h-9 shrink-0">
                             <LayoutTemplate className="h-3.5 w-3.5" />
-                            Şablon
+                            {t('journal.template')}
                             <ChevronDown className="h-3 w-3 text-muted-foreground" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {journalTemplates.map(tmpl => (
+                        <DropdownMenuContent align="end" className="w-56">
+                          {journalTemplateIds.map(id => (
                             <DropdownMenuItem
-                              key={tmpl.id}
-                              onClick={() => setNewEntry(p => ({ ...p, content: tmpl.content }))}
+                              key={id}
+                              onClick={() => setNewEntry(p => ({
+                                ...p,
+                                content: t(`journal.templates.${id}.content`),
+                                title: p.title || t(`journal.templates.${id}.name`),
+                              }))}
+                              className="flex items-start gap-2 py-2"
                             >
-                              {tmpl.name}
+                              <span className="text-base shrink-0">{journalTemplateIcons[id]}</span>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium">{t(`journal.templates.${id}.name`)}</span>
+                                <span className="text-[11px] text-muted-foreground">{t(`journal.templates.${id}.desc`)}</span>
+                              </div>
                             </DropdownMenuItem>
                           ))}
                         </DropdownMenuContent>
@@ -322,7 +324,7 @@ export function JournalPage() {
                     </div>
                   </div>
 
-                  <div><div className="flex items-center justify-between mb-1.5"><label className="text-sm font-medium">{t('journal.whatHappenedToday')}</label><span className={cn('text-xs tabular-nums', newEntryWordCount > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground')}>{newEntryWordCount} {t('journal.words')}</span></div><Textarea placeholder={t('journal.writeAboutDay')} value={newEntry.content} onChange={e => setNewEntry(p => ({ ...p, content: e.target.value }))} rows={4} /></div>
+                  <div><div className="flex items-center justify-between mb-1.5"><label className="text-sm font-medium">{t('journal.whatHappenedToday')}</label><span className={cn('text-xs tabular-nums', newEntryWordCount > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground')}>{newEntryWordCount} {t('journal.words')}</span></div><RichTextEditor placeholder={t('journal.writeAboutDay')} value={newEntry.content} onChange={content => setNewEntry(p => ({ ...p, content }))} className="min-h-[150px]" /></div>
 
                   {/* Gratitude Section */}
                   <div>
@@ -478,7 +480,7 @@ export function JournalPage() {
         <DialogContent className="max-w-lg" aria-describedby={undefined}>
           <DialogHeader><DialogTitle>{t('edit')} {t('journal.journalEntry')}</DialogTitle><DialogDescription className="sr-only">Edit journal entry</DialogDescription></DialogHeader>
           <div className="py-2">
-            <Textarea value={editContent} onChange={e => setEditContent(e.target.value)} rows={8} className="resize-none" />
+            <RichTextEditor value={editContent} onChange={setEditContent} className="min-h-[250px]" />
           </div>
           <DialogFooter><DialogClose asChild><Button variant="outline">{t('cancel')}</Button></DialogClose><Button onClick={handleUpdateEntry} disabled={updateEntryMutation.isPending}>{t('save')}</Button></DialogFooter>
         </DialogContent>
@@ -504,7 +506,10 @@ export function JournalPage() {
               <Separator />
 
               {/* Content without gratitude section */}
-              <p className="text-sm leading-relaxed">{selectedEntry.content.replace(/## Gratitude[\s\S]*$/, '').trim()}</p>
+              <div 
+                className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: selectedEntry.content.replace(/## Gratitude[\s\S]*$/, '').trim() }}
+              />
 
               {/* Gratitude in detail panel */}
               {extractGratitude(selectedEntry.content).length > 0 && (

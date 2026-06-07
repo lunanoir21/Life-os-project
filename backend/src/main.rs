@@ -30,6 +30,9 @@ async fn main() {
         .await
         .unwrap_or_else(|e| panic!("failed to open database {database_url}: {e}"));
 
+    // Start the recurring tasks worker
+    lifeos_backend::tasks::spawn_recurrence_worker(pool.clone());
+
     let app = build_app(pool);
 
     let addr = format!("0.0.0.0:{port}");

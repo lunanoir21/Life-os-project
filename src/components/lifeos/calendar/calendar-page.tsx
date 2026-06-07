@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import {
-  ChevronLeft, ChevronRight, Plus, CalendarDays, Clock, MapPin, Trash2, CalendarCheck, Timer, ArrowRight,
+  ChevronLeft, ChevronRight, Plus, CalendarDays, Clock, MapPin, Trash2, CalendarCheck, Timer, ArrowRight, RefreshCw,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -38,6 +38,7 @@ function mapApiEvent(apiEvent: Record<string, unknown>): CalendarEvent {
     allDay: (apiEvent.allDay as boolean) || false,
     color: (apiEvent.color as string) || '#6b7280',
     location: (apiEvent.location as string) || null,
+    recurrence: (apiEvent.recurrence as string) || null,
     taskId: (apiEvent.taskId as string) || null,
     createdAt: new Date(apiEvent.createdAt as string).toISOString(),
   }
@@ -47,11 +48,12 @@ function mapApiEvent(apiEvent: Record<string, unknown>): CalendarEvent {
 function EventPill({ event, compact = false }: { event: CalendarEvent; compact?: boolean }) {
   const [showTooltip, setShowTooltip] = useState(false)
   const startTime = event.allDay ? '' : format(new Date(event.startDate), 'H:mm')
+  const isRecurring = event.recurrence && event.recurrence !== 'none'
 
   const pill = (
     <div
       className={cn(
-        'text-[10px] leading-tight px-1.5 py-0.5 rounded truncate transition-all duration-200 cursor-pointer hover:opacity-80',
+        'text-[10px] leading-tight px-1.5 py-0.5 rounded truncate transition-all duration-200 cursor-pointer hover:opacity-80 flex items-center gap-1',
         compact ? 'border-l-2' : 'border-l-[3px]'
       )}
       style={{
@@ -62,8 +64,11 @@ function EventPill({ event, compact = false }: { event: CalendarEvent; compact?:
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
     >
-      {startTime && <span className="font-medium">{startTime} </span>}
-      {event.title}
+      {isRecurring && <RefreshCw className="h-2.5 w-2.5 shrink-0" />}
+      <span className="truncate">
+        {startTime && <span className="font-medium">{startTime} </span>}
+        {event.title}
+      </span>
     </div>
   )
 
@@ -113,17 +118,79 @@ export function CalendarPage() {
   const updateEventMutation = useUpdateEvent()
   const deleteEventMutation = useDeleteEvent()
 
+  // Expand recurring events into multiple instances
+  const expandRecurringEvent = useCallback((event: CalendarEvent, rangeStart: Date, rangeEnd: Date): CalendarEvent[] => {
+    if (!event.recurrence || event.recurrence === 'none') {
+      return [event]
+    }
+
+    const instances: CalendarEvent[] = []
+    const eventStart = new Date(event.startDate)
+    let currentDate = new Date(eventStart)
+    
+    // Limit iterations to prevent infinite loops
+    let iterations = 0
+    const maxIterations = 365 // Maximum 1 year of recurrence
+
+    while (currentDate <= rangeEnd && iterations < maxIterations) {
+      if (currentDate >= rangeStart) {
+        // Create a new instance for this date
+        const daysDiff = Math.floor((currentDate.getTime() - eventStart.getTime()) / (1000 * 60 * 60 * 24))
+        const newStartDate = new Date(eventStart)
+        newStartDate.setDate(eventStart.getDate() + daysDiff)
+        
+        const newEndDate = event.endDate ? new Date(event.endDate) : null
+        if (newEndDate) {
+          newEndDate.setDate(new Date(event.endDate!).getDate() + daysDiff)
+        }
+
+        instances.push({
+          ...event,
+          id: `${event.id}-${currentDate.toISOString()}`,
+          startDate: newStartDate.toISOString(),
+          endDate: newEndDate ? newEndDate.toISOString() : null,
+        })
+      }
+
+      // Move to next occurrence
+      if (event.recurrence === 'daily') {
+        currentDate.setDate(currentDate.getDate() + 1)
+      } else if (event.recurrence === 'weekly') {
+        currentDate.setDate(currentDate.getDate() + 7)
+      } else if (event.recurrence === 'monthly') {
+        currentDate.setMonth(currentDate.getMonth() + 1)
+      } else {
+        break // Unknown recurrence type
+      }
+      
+      iterations++
+    }
+
+    return instances
+  }, [])
+
   const events: CalendarEvent[] = useMemo(() => {
     if (!apiEvents) return []
-    return ((apiEvents as { events: unknown[]; total: number }).events as Record<string, unknown>[]).map(mapApiEvent)
-  }, [apiEvents])
+    const rawEvents = ((apiEvents as { events: unknown[]; total: number }).events as Record<string, unknown>[]).map(mapApiEvent)
+    
+    // Expand recurring events within the visible range
+    const rangeStart = new Date(startDate)
+    const rangeEnd = new Date(endDate)
+    
+    const expandedEvents: CalendarEvent[] = []
+    for (const event of rawEvents) {
+      expandedEvents.push(...expandRecurringEvent(event, rangeStart, rangeEnd))
+    }
+    
+    return expandedEvents
+  }, [apiEvents, startDate, endDate, expandRecurringEvent])
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editEvent, setEditEvent] = useState<{ id: string; title: string; description: string; color: string; location: string } | null>(null)
   const [newEvent, setNewEvent] = useState({
     title: '', description: '', date: format(new Date(), 'yyyy-MM-dd'),
-    startTime: '09:00', endTime: '10:00', allDay: false, color: '#10b981', location: '',
+    startTime: '09:00', endTime: '10:00', allDay: false, color: '#10b981', location: '', recurrence: 'none',
   })
 
   const navigateBack = () => {
@@ -152,9 +219,10 @@ export function CalendarPage() {
       allDay: newEvent.allDay,
       color: newEvent.color,
       location: newEvent.location || null,
+      recurrence: newEvent.recurrence === 'none' ? null : newEvent.recurrence,
     }, {
       onSuccess: () => {
-        setNewEvent({ title: '', description: '', date: format(new Date(), 'yyyy-MM-dd'), startTime: '09:00', endTime: '10:00', allDay: false, color: '#10b981', location: '' })
+        setNewEvent({ title: '', description: '', date: format(new Date(), 'yyyy-MM-dd'), startTime: '09:00', endTime: '10:00', allDay: false, color: '#10b981', location: '', recurrence: 'none' })
         setCreateDialogOpen(false)
         showToast.success(t('toast.created'))
       }
@@ -502,6 +570,18 @@ export function CalendarPage() {
                       <label className="text-sm font-medium mb-1.5 block">{t('calendar.location')}</label>
                       <Input placeholder={t('calendar.optional')} value={newEvent.location} onChange={e => setNewEvent(p => ({ ...p, location: e.target.value }))} />
                     </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1.5 block">{t('calendar.recurrence')}</label>
+                    <Select value={newEvent.recurrence} onValueChange={v => setNewEvent(p => ({ ...p, recurrence: v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">{t('calendar.noRepeat')}</SelectItem>
+                        <SelectItem value="daily">{t('calendar.daily')}</SelectItem>
+                        <SelectItem value="weekly">{t('calendar.weekly')}</SelectItem>
+                        <SelectItem value="monthly">{t('calendar.monthly')}</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div>

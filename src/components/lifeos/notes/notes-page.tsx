@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
+import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import {
   Plus,
   Search,
@@ -21,20 +22,11 @@ import {
   FolderPlus,
   Link2,
   Clock,
-  Bold,
-  Italic,
-  Heading,
-  ListOrdered,
-  CheckSquare,
-  Code,
-  LinkIcon,
-  Quote,
   Zap,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog'
@@ -113,20 +105,6 @@ function mapApiFolder(apiFolder: Record<string, unknown>): NoteFolder {
   }
 }
 
-// Markdown toolbar button
-function ToolbarButton({ icon: Icon, label, onClick }: { icon: React.ElementType; label: string; onClick: () => void }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 hover:bg-accent hover:shadow-sm hover:shadow-emerald-500/5 transition-all duration-150" onClick={onClick}>
-          <Icon className="h-3.5 w-3.5" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom" className="text-xs">{label}</TooltipContent>
-    </Tooltip>
-  )
-}
-
 // Relative time display
 function RelativeTime({ dateStr }: { dateStr: string }) {
   const [, forceUpdate] = useState(0)
@@ -168,7 +146,6 @@ export function NotesPage() {
   const createNoteMutation = useCreateNote()
   const updateNoteMutation = useUpdateNote()
   const deleteNoteMutation = useDeleteNote()
-  const editorRef = useRef<HTMLTextAreaElement>(null)
 
   const notes: Note[] = useMemo(() => {
     if (!apiNotes) return []
@@ -225,8 +202,6 @@ export function NotesPage() {
         setNewNote({ title: '', type: 'note', folderId: '', tags: '' })
         setCreateDialogOpen(false)
         showToast.success('Note created')
-        // Focus editor after creation
-        setTimeout(() => editorRef.current?.focus(), 100)
       }
     })
   }, [newNote, createNoteMutation])
@@ -242,7 +217,6 @@ export function NotesPage() {
         const created = data as Record<string, unknown>
         setSelectedNoteId(created.id as string)
         showToast.success('Quick note created')
-        setTimeout(() => editorRef.current?.focus(), 100)
       }
     })
   }, [createNoteMutation])
@@ -282,64 +256,6 @@ export function NotesPage() {
       return next
     })
   }
-
-  // Markdown formatting handler - processes formatting spec on click (ref accessed only in event handler)
-  const handleToolbarAction = useCallback((type: 'wrap' | 'line', prefix: string, suffix: string = '') => {
-    if (!selectedNote) return
-    const textarea = editorRef.current
-    if (!textarea) {
-      // Fallback: append at end
-      const newContent = selectedNote.content + (selectedNote.content ? '\n' : '') + prefix + suffix
-      updateNoteContent(selectedNote.id, newContent)
-      return
-    }
-    const content = selectedNote.content
-    if (type === 'wrap') {
-      const start = textarea.selectionStart
-      const end = textarea.selectionEnd
-      const selectedText = content.substring(start, end)
-      const newText = content.substring(0, start) + prefix + selectedText + suffix + content.substring(end)
-      updateNoteContent(selectedNote.id, newText)
-      requestAnimationFrame(() => {
-        const cursorPos = start + prefix.length + selectedText.length + suffix.length
-        textarea.setSelectionRange(cursorPos, cursorPos)
-        textarea.focus()
-      })
-    } else {
-      // Line prefix insertion
-      const cursorPos = textarea.selectionStart
-      const lineStart = content.lastIndexOf('\n', cursorPos - 1) + 1
-      const lineEnd = content.indexOf('\n', cursorPos)
-      const actualLineEnd = lineEnd === -1 ? content.length : lineEnd
-      const currentLine = content.substring(lineStart, actualLineEnd)
-      if (currentLine.startsWith(prefix)) {
-        const newText = content.substring(0, lineStart) + currentLine.substring(prefix.length) + content.substring(actualLineEnd)
-        updateNoteContent(selectedNote.id, newText)
-        requestAnimationFrame(() => {
-          textarea.setSelectionRange(cursorPos - prefix.length, cursorPos - prefix.length)
-          textarea.focus()
-        })
-      } else {
-        const newText = content.substring(0, lineStart) + prefix + currentLine + content.substring(actualLineEnd)
-        updateNoteContent(selectedNote.id, newText)
-        requestAnimationFrame(() => {
-          textarea.setSelectionRange(cursorPos + prefix.length, cursorPos + prefix.length)
-          textarea.focus()
-        })
-      }
-    }
-  }, [selectedNote, updateNoteContent])
-
-  const toolbarActions = [
-    { icon: Bold, label: 'Bold', type: 'wrap' as const, prefix: '**', suffix: '**' },
-    { icon: Italic, label: 'Italic', type: 'wrap' as const, prefix: '*', suffix: '*' },
-    { icon: Heading, label: 'Heading', type: 'line' as const, prefix: '## ' },
-    { icon: ListOrdered, label: 'List', type: 'line' as const, prefix: '- ' },
-    { icon: CheckSquare, label: 'Checklist', type: 'line' as const, prefix: '- [ ] ' },
-    { icon: Code, label: 'Code', type: 'wrap' as const, prefix: '`', suffix: '`' },
-    { icon: LinkIcon, label: 'Link', type: 'wrap' as const, prefix: '[', suffix: '](url)' },
-    { icon: Quote, label: 'Quote', type: 'line' as const, prefix: '> ' },
-  ]
 
   const renderFolder = (folder: NoteFolder, depth = 0) => {
     const hasPinnedNotes = notes.some(n => n.folderId === folder.id && n.isPinned)
@@ -589,59 +505,44 @@ export function NotesPage() {
                 </div>
               </div>
 
-              {/* Markdown Toolbar */}
-              {(editorMode === 'edit' || editorMode === 'split') && (
-                <div className="px-3 py-1.5 border-b border-border/50 bg-muted/20">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-0.5">
-                      {toolbarActions.map((tool) => (
-                        <ToolbarButton key={tool.label} icon={tool.icon} label={tool.label} onClick={() => handleToolbarAction(tool.type, tool.prefix, tool.suffix)} />
-                      ))}
+              {/* Editor Content Area */}
+              <div className="flex-1 overflow-hidden flex flex-col">
+                <div className="flex-1 overflow-auto">
+                  {editorMode === 'edit' ? (
+                    <div className="h-full p-4">
+                      <RichTextEditor
+                        value={selectedNote.content}
+                        onChange={content => updateNoteContent(selectedNote.id, content)}
+                        className="border-0 focus:ring-0 min-h-full"
+                        placeholder={t('notes.startWriting')}
+                      />
                     </div>
-                    {/* Word count & reading time strip */}
-                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60">
-                      <span className="flex items-center gap-1">
-                        <FileText className="h-2.5 w-2.5" />
-                        {currentWordCount} {t('notes.words')}
-                      </span>
-                      <span className="text-muted-foreground/30">·</span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-2.5 w-2.5" />
-                        {currentReadingTime} {t('notes.minRead')}
-                      </span>
+                  ) : editorMode === 'preview' ? (
+                    <div className="h-full p-8 overflow-auto">
+                      <div 
+                        className="prose prose-sm dark:prose-invert max-w-none"
+                        dangerouslySetInnerHTML={{ __html: selectedNote.content }}
+                      />
                     </div>
-                  </div>
+                  ) : (
+                    <div className="flex h-full divide-x divide-border/50">
+                      <div className="w-1/2 h-full p-4 overflow-auto">
+                        <RichTextEditor
+                          value={selectedNote.content}
+                          onChange={content => updateNoteContent(selectedNote.id, content)}
+                          className="border-0 focus:ring-0 min-h-full"
+                          placeholder={t('notes.startWriting')}
+                        />
+                      </div>
+                      <div className="w-1/2 h-full p-8 overflow-auto bg-muted/5">
+                        <div 
+                          className="prose prose-sm dark:prose-invert max-w-none"
+                          dangerouslySetInnerHTML={{ __html: selectedNote.content }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-
-              <div className="flex-1 overflow-auto">
-                {(editorMode === 'edit' || editorMode === 'split') && (
-                  <div className={editorMode === 'split' ? 'w-1/2 h-full inline-block align-top' : 'h-full'}>
-                    <Textarea
-                      ref={editorRef}
-                      value={selectedNote.content}
-                      onChange={e => updateNoteContent(selectedNote.id, e.target.value)}
-                      className="w-full h-full resize-none border-0 focus-visible:ring-0 p-[var(--lifeos-card-padding)] font-mono text-sm leading-relaxed bg-amber-50/30 dark:bg-amber-950/5"
-                      placeholder={t('notes.startWriting')}
-                    />
-                  </div>
-                )}
-                {(editorMode === 'preview' || editorMode === 'split') && (
-                  <div className={`${editorMode === 'split' ? 'w-1/2 h-full inline-block align-top' : 'h-full'} p-[var(--lifeos-card-padding)]`}>
-                    <div className="prose prose-sm dark:prose-invert max-w-none">
-                      {selectedNote.content.split('\n').map((line, i) => {
-                        if (line.startsWith('# ')) return <h1 key={i} className="text-2xl font-bold mt-4 mb-2">{line.slice(2)}</h1>
-                        if (line.startsWith('## ')) return <h2 key={i} className="text-lg font-semibold mt-3 mb-1.5 text-foreground">{line.slice(3)}</h2>
-                        if (line.startsWith('- [ ] ')) return <div key={i} className="flex items-center gap-2 ml-4 py-0.5"><input type="checkbox" disabled className="rounded accent-emerald-500" /><span className="text-muted-foreground">{line.slice(6)}</span></div>
-                        if (line.startsWith('- ')) return <div key={i} className="flex items-start gap-2 ml-4 py-0.5"><span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500/50 shrink-0" /><span>{line.slice(2)}</span></div>
-                        if (line.startsWith('> ')) return <blockquote key={i} className="border-l-2 border-emerald-500/30 pl-4 italic text-muted-foreground py-1">{line.slice(2)}</blockquote>
-                        if (line.trim() === '') return <br key={i} />
-                        if (line.startsWith('**') && line.endsWith('**')) return <p key={i} className="font-semibold">{line.slice(2, -2)}</p>
-                        return <p key={i} className="leading-relaxed py-0.5">{line}</p>
-                      })}
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Bottom bar with word count, reading time, and type badge */}

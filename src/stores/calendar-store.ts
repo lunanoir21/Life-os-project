@@ -11,6 +11,7 @@ export interface CalendarEvent {
   allDay: boolean
   color: string
   location: string | null
+  recurrence: string | null
   taskId: string | null
   createdAt: string
 }

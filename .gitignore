@@ -12,10 +12,14 @@ node_modules
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
+/playwright/.cache/
 
 # next.js
 /.next/
 /out/
+.next
 
 # production
 /build
@@ -45,6 +49,9 @@ next-env.d.ts
 *.db
 *.db-journal
 db/
+/backend/dev.db
+/backend/target/
+/prisma/dev.db
 
 # local config
 local-*

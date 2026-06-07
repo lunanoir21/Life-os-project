@@ -43,6 +43,16 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 import { useTaskStore, type Task, type Project } from '@/stores/task-store'
 import { useAppStore } from '@/stores/app-store'
 import { useTranslation } from '@/lib/i18n'
@@ -191,6 +201,7 @@ function SortableTaskCard({
   onSelectTask,
   onMoveTask,
   onDeleteTask,
+  onEditTask,
   columnStatus,
 }: {
   task: Task
@@ -199,6 +210,7 @@ function SortableTaskCard({
   onSelectTask: (id: string) => void
   onMoveTask: (id: string, status: Task['status']) => void
   onDeleteTask: (id: string) => void
+  onEditTask?: (task: Task) => void
   columnStatus: Task['status']
 }) {
   const {
@@ -221,8 +233,12 @@ function SortableTaskCard({
   const dueStatus = getDueDateStatus(task.dueDate)
   const isCelebrating = celebratingTaskId === task.id
 
+  const { t } = useTranslation()
+
   return (
     <div ref={setNodeRef} style={style}>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
       <Card
         className={cn(
           'cursor-pointer transition-all duration-200 border-l-[3px] hover:shadow-md micro-hover shadow-card',
@@ -232,6 +248,7 @@ function SortableTaskCard({
           isDragging && 'shadow-xl ring-2 ring-primary/30 rotate-1'
         )}
         onClick={() => onSelectTask(task.id)}
+        onDoubleClick={(e) => { e.stopPropagation(); onEditTask?.(task) }}
       >
         <CardContent className="p-3.5 space-y-2.5">
           <div className="flex items-start justify-between gap-2">
@@ -287,6 +304,36 @@ function SortableTaskCard({
           )}
         </CardContent>
       </Card>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-48">
+          <ContextMenuItem onClick={() => onEditTask?.(task)}>
+            <Edit3 className="h-3.5 w-3.5 mr-2" />
+            {t('edit')}
+          </ContextMenuItem>
+          <ContextMenuSub>
+            <ContextMenuSubTrigger>
+              <ChevronRight className="h-3.5 w-3.5 mr-2" />
+              {t('tasks.moveTo')}
+            </ContextMenuSubTrigger>
+            <ContextMenuSubContent className="w-36">
+              <ContextMenuItem disabled={columnStatus === 'todo'} onClick={() => onMoveTask(task.id, 'todo')}>
+                {t('tasks.todo')}
+              </ContextMenuItem>
+              <ContextMenuItem disabled={columnStatus === 'in-progress'} onClick={() => onMoveTask(task.id, 'in-progress')}>
+                {t('tasks.inProgress')}
+              </ContextMenuItem>
+              <ContextMenuItem disabled={columnStatus === 'done'} onClick={() => onMoveTask(task.id, 'done')}>
+                {t('tasks.done')}
+              </ContextMenuItem>
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={() => onDeleteTask(task.id)} className="text-destructive focus:text-destructive">
+            <Trash2 className="h-3.5 w-3.5 mr-2" />
+            {t('delete')}
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
     </div>
   )
 }
@@ -354,6 +401,10 @@ export function TasksPage() {
   const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'medium' as Task['priority'], dueDate: '', projectId: '', tags: '', recurrence: 'none' as Task['recurrence'] })
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  // Edit-task dialog state — populated when the user clicks "Edit" in the
+  // context menu or double-clicks a task title.
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editTask, setEditTask] = useState<{ id: string; title: string; description: string; priority: Task['priority']; dueDate: string; projectId: string; status: Task['status']; recurrence: Task['recurrence'] } | null>(null)
   const isMobile = useIsMobile()
 
   const selectedTask = useMemo(() => tasks.find(t => t.id === selectedTaskId), [tasks, selectedTaskId])
@@ -440,6 +491,41 @@ export function TasksPage() {
   const moveTask = useCallback((id: string, newStatus: Task['status']) => {
     updateTaskMutation.mutate({ id, status: newStatus })
   }, [updateTaskMutation])
+
+  // Open the edit dialog pre-filled with a task's current values
+  const openEditDialog = useCallback((task: Task) => {
+    setEditTask({
+      id: task.id,
+      title: task.title,
+      description: task.description || '',
+      priority: task.priority,
+      dueDate: task.dueDate || '',
+      projectId: task.projectId || '',
+      status: task.status,
+      recurrence: task.recurrence || 'none',
+    })
+    setEditDialogOpen(true)
+  }, [])
+
+  const handleUpdateTask = useCallback(() => {
+    if (!editTask || !editTask.title.trim()) return
+    updateTaskMutation.mutate({
+      id: editTask.id,
+      title: editTask.title,
+      description: editTask.description,
+      priority: editTask.priority,
+      dueDate: editTask.dueDate || null,
+      projectId: editTask.projectId || null,
+      status: editTask.status,
+      recurrence: editTask.recurrence !== 'none' ? editTask.recurrence : null,
+    }, {
+      onSuccess: () => {
+        setEditDialogOpen(false)
+        setEditTask(null)
+        showToast.success(t('toast.saved'))
+      },
+    })
+  }, [editTask, updateTaskMutation, t])
 
   const handleBulkDone = useCallback(() => {
     selectedIds.forEach(id => {
@@ -1026,6 +1112,129 @@ export function TasksPage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+
+            {/* ─── Edit Task Dialog ──────────────────────────────────── */}
+            <Dialog open={editDialogOpen} onOpenChange={(o) => { setEditDialogOpen(o); if (!o) setEditTask(null) }}>
+              <DialogContent className="max-w-lg" aria-describedby={undefined}>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Edit3 className="h-4 w-4" />
+                    {t('tasks.editTask')}
+                  </DialogTitle>
+                  <DialogDescription className="sr-only">{t('tasks.editTask')}</DialogDescription>
+                </DialogHeader>
+                {editTask && (
+                  <div
+                    className="space-y-4 py-2"
+                    onKeyDown={(e) => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                        e.preventDefault()
+                        handleUpdateTask()
+                      }
+                    }}
+                  >
+                    <div>
+                      <label className="text-sm font-medium mb-1.5 block">{t('tasks.taskTitle')}</label>
+                      <Input
+                        autoFocus
+                        value={editTask.title}
+                        onChange={(e) => setEditTask((p) => p && ({ ...p, title: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-1.5 block">{t('tasks.description')}</label>
+                      <Textarea
+                        rows={3}
+                        value={editTask.description}
+                        onChange={(e) => setEditTask((p) => p && ({ ...p, description: e.target.value }))}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium mb-1.5 block">{t('tasks.priority')}</label>
+                        <Select
+                          value={editTask.priority}
+                          onValueChange={(v) => setEditTask((p) => p && ({ ...p, priority: v as Task['priority'] }))}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="low">{t('tasks.low')}</SelectItem>
+                            <SelectItem value="medium">{t('tasks.medium')}</SelectItem>
+                            <SelectItem value="high">{t('tasks.high')}</SelectItem>
+                            <SelectItem value="urgent">{t('tasks.urgent')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-1.5 block">{t('tasks.status')}</label>
+                        <Select
+                          value={editTask.status}
+                          onValueChange={(v) => setEditTask((p) => p && ({ ...p, status: v as Task['status'] }))}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="todo">{t('tasks.todo')}</SelectItem>
+                            <SelectItem value="in-progress">{t('tasks.inProgress')}</SelectItem>
+                            <SelectItem value="done">{t('tasks.done')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium mb-1.5 block">{t('tasks.dueDate')}</label>
+                        <Input
+                          type="date"
+                          value={editTask.dueDate}
+                          onChange={(e) => setEditTask((p) => p && ({ ...p, dueDate: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-1.5 block">{t('tasks.project')}</label>
+                        <Select
+                          value={editTask.projectId || 'none'}
+                          onValueChange={(v) => setEditTask((p) => p && ({ ...p, projectId: v === 'none' ? '' : v }))}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">—</SelectItem>
+                            {projects.map((pr) => (
+                              <SelectItem key={pr.id} value={pr.id}>{pr.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-1.5 block">{t('tasks.composer.recurrence')}</label>
+                      <Select
+                        value={editTask.recurrence || 'none'}
+                        onValueChange={(v) => setEditTask((p) => p && ({ ...p, recurrence: v as Task['recurrence'] }))}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">{t('tasks.composer.recurrenceNone')}</SelectItem>
+                          <SelectItem value="daily">{t('habits.daily')}</SelectItem>
+                          <SelectItem value="weekly">{t('habits.weekly')}</SelectItem>
+                          <SelectItem value="monthly">{t('habits.monthly')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline">{t('cancel')}</Button>
+                  </DialogClose>
+                  <Button
+                    onClick={handleUpdateTask}
+                    disabled={!editTask || !editTask.title.trim() || updateTaskMutation.isPending}
+                  >
+                    {t('save')}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             </div>
           </div>
           <div className="relative">
@@ -1059,6 +1268,8 @@ export function TasksPage() {
               onSelectTask={setSelectedTaskId}
               onToggleStatus={toggleTaskStatus}
               onDeleteTask={deleteTask}
+              onEditTask={openEditDialog}
+              onMoveTask={moveTask}
               accentHex={accentHex}
               selectionMode={selectionMode}
               selectedIds={selectedIds}
@@ -1075,6 +1286,7 @@ export function TasksPage() {
               onSelectTask={setSelectedTaskId}
               onMoveTask={moveTask}
               onDeleteTask={deleteTask}
+              onEditTask={openEditDialog}
             />
           )}
         </div>
@@ -1116,13 +1328,15 @@ export function TasksPage() {
   )
 }
 
-function Listview({ tasks, selectedTaskId, celebratingTaskId, onSelectTask, onToggleStatus, onDeleteTask, accentHex = '#10b981', selectionMode = false, selectedIds = new Set<string>(), onToggleSelect, onAdd }: {
+function Listview({ tasks, selectedTaskId, celebratingTaskId, onSelectTask, onToggleStatus, onDeleteTask, onEditTask, onMoveTask, accentHex = '#10b981', selectionMode = false, selectedIds = new Set<string>(), onToggleSelect, onAdd }: {
   tasks: Task[]
   selectedTaskId: string | null
   celebratingTaskId: string | null
   onSelectTask: (id: string) => void
   onToggleStatus: (id: string) => void
   onDeleteTask: (id: string) => void
+  onEditTask?: (task: Task) => void
+  onMoveTask?: (id: string, status: Task['status']) => void
   accentHex?: string
   selectionMode?: boolean
   selectedIds?: Set<string>
@@ -1177,13 +1391,12 @@ function Listview({ tasks, selectedTaskId, celebratingTaskId, onSelectTask, onTo
         const dueStatus = getDueDateStatus(task.dueDate)
         const isCelebrating = celebratingTaskId === task.id
         const isSelected = selectedIds.has(task.id)
-        return (
+        const rowContent = (
           <motion.div
-            key={task.id}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className={cn(
-              'flex items-center gap-3 px-4 py-3 hover:bg-accent/30 transition-all duration-200 cursor-pointer border-l-[3px]',
+              'group flex items-center gap-3 px-4 py-3 hover:bg-accent/30 transition-all duration-200 cursor-pointer border-l-[3px]',
               priorityBorderColors[task.priority],
               task.status === 'done' && 'opacity-60',
               isCelebrating && 'animate-celebrate',
@@ -1191,6 +1404,11 @@ function Listview({ tasks, selectedTaskId, celebratingTaskId, onSelectTask, onTo
             )}
             style={selectedTaskId === task.id && !selectionMode ? { borderLeftColor: accentHex, backgroundColor: 'var(--accent)' } : undefined}
             onClick={() => selectionMode ? onToggleSelect?.(task.id) : onSelectTask(task.id)}
+            onDoubleClick={(e) => {
+              if (selectionMode) return
+              e.stopPropagation()
+              onEditTask?.(task)
+            }}
           >
             {selectionMode ? (
               <Checkbox
@@ -1231,23 +1449,119 @@ function Listview({ tasks, selectedTaskId, celebratingTaskId, onSelectTask, onTo
               {task.status === 'in-progress' ? t('tasks.inProgress') : task.status === 'todo' ? t('tasks.todo') : t('tasks.done')}
             </Badge>
             {!selectionMode && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100"
-                onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id) }}
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100"
+                  onClick={(e) => { e.stopPropagation(); onEditTask?.(task) }}
+                  title={t('edit')}
+                >
+                  <Edit3 className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100"
+                  onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id) }}
+                  title={t('delete')}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </>
             )}
           </motion.div>
+        )
+
+        // Always wrap in context menu for consistency
+        return (
+          <ContextMenu key={task.id}>
+            <ContextMenuTrigger asChild>{rowContent}</ContextMenuTrigger>
+            <ContextMenuContent className="w-48">
+              {selectionMode ? (
+                <>
+                  <ContextMenuItem onClick={() => onToggleSelect?.(task.id)}>
+                    <Check className="h-3.5 w-3.5 mr-2" />
+                    {isSelected ? 'Seçimi kaldır' : 'Seç'}
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem 
+                    disabled={selectedIds.size === 0}
+                    onClick={() => {
+                      // Trigger bulk complete for all selected
+                      selectedIds.forEach(id => onToggleStatus(id))
+                    }}
+                  >
+                    <Check className="h-3.5 w-3.5 mr-2" />
+                    Seçilileri tamamla
+                  </ContextMenuItem>
+                  <ContextMenuItem 
+                    disabled={selectedIds.size === 0}
+                    onClick={() => {
+                      // Trigger bulk delete for all selected
+                      selectedIds.forEach(id => onDeleteTask(id))
+                    }}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-2" />
+                    Seçilileri sil
+                  </ContextMenuItem>
+                </>
+              ) : (
+                <>
+                  <ContextMenuItem onClick={() => onEditTask?.(task)}>
+                    <Edit3 className="h-3.5 w-3.5 mr-2" />
+                    {t('edit')}
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => onToggleStatus(task.id)}>
+                    <Check className="h-3.5 w-3.5 mr-2" />
+                    {task.status === 'done' ? t('tasks.markAsTodo') : t('tasks.markAsDone')}
+                  </ContextMenuItem>
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger>
+                      <ChevronRight className="h-3.5 w-3.5 mr-2" />
+                      {t('tasks.moveTo')}
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent className="w-36">
+                      <ContextMenuItem
+                        disabled={task.status === 'todo'}
+                        onClick={() => onMoveTask?.(task.id, 'todo')}
+                      >
+                        {t('tasks.todo')}
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        disabled={task.status === 'in-progress'}
+                        onClick={() => onMoveTask?.(task.id, 'in-progress')}
+                      >
+                        {t('tasks.inProgress')}
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        disabled={task.status === 'done'}
+                        onClick={() => onMoveTask?.(task.id, 'done')}
+                      >
+                        {t('tasks.done')}
+                      </ContextMenuItem>
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem
+                    onClick={() => onDeleteTask(task.id)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-2" />
+                    {t('delete')}
+                  </ContextMenuItem>
+                </>
+              )}
+            </ContextMenuContent>
+          </ContextMenu>
         )
       })}
     </div>
   )
 }
 
-function Boardview({ todoTasks, inProgressTasks, doneTasks, selectedTaskId, celebratingTaskId, onSelectTask, onMoveTask, onDeleteTask }: {
+function Boardview({ todoTasks, inProgressTasks, doneTasks, selectedTaskId, celebratingTaskId, onSelectTask, onMoveTask, onDeleteTask, onEditTask }: {
   todoTasks: Task[]
   inProgressTasks: Task[]
   doneTasks: Task[]
@@ -1256,6 +1570,7 @@ function Boardview({ todoTasks, inProgressTasks, doneTasks, selectedTaskId, cele
   onSelectTask: (id: string) => void
   onMoveTask: (id: string, status: Task['status']) => void
   onDeleteTask: (id: string) => void
+  onEditTask?: (task: Task) => void
 }) {
   const { t } = useTranslation()
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -1416,6 +1731,7 @@ function Boardview({ todoTasks, inProgressTasks, doneTasks, selectedTaskId, cele
                           onSelectTask={onSelectTask}
                           onMoveTask={onMoveTask}
                           onDeleteTask={onDeleteTask}
+                          onEditTask={onEditTask}
                           columnStatus={col.status}
                         />
                       ))}

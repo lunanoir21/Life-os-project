@@ -17,6 +17,8 @@ import {
   Upload,
   ArrowLeftRight,
   RefreshCw,
+  FileDown,
+  Pencil,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -32,11 +34,14 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { motion } from 'framer-motion'
 import type { FinanceAccount, Transaction, TransactionCategory, Budget } from '@/stores/finance-store'
 import { useAppStore } from '@/stores/app-store'
-import { useFinanceAccounts, useFinanceTransactions, useFinanceCategories, useCreateTransaction, useDeleteTransaction, useCreateAccount } from '@/lib/api/hooks'
+import { useFinanceAccounts, useFinanceTransactions, useFinanceCategories, useCreateTransaction, useDeleteTransaction, useCreateAccount, useFinanceBudgets, useCreateBudget } from '@/lib/api/hooks'
 import { useTranslation } from '@/lib/i18n'
 import { showToast } from '@/lib/toast'
 import { SUPPORTED_CURRENCIES, useExchangeRates, useExchangeRateHistory, convert, formatCurrency, symbolFor } from '@/lib/finance/currency'
+import { exportFinanceReportToPDF } from '@/lib/finance/export'
+
 function cn(...inputs: (string | undefined | false)[]) { return inputs.filter(Boolean).join(' ') }
+
 
 /**
  * Smoothly animate a number from its previous value to `target` over
@@ -177,27 +182,105 @@ export function FinancePage() {
   const [financeView, setFinanceView] = useState<'overview' | 'transactions' | 'budget' | 'analytics'>('overview')
   const [createAccountDialogOpen, setCreateAccountDialogOpen] = useState(false)
   const [newAccount, setNewAccount] = useState({ name: '', type: 'checking', balance: '', currency: 'USD', color: '#10b981' })
+  const [budgetDialogOpen, setBudgetDialogOpen] = useState(false)
+  const [draftBudgets, setDraftBudgets] = useState<Record<string, string>>({})
 
-  // Budget data (derived from categories with realistic defaults)
-  const budgetData = useMemo(() => {
-    const categoryBudgets: Record<string, number> = {
-      'Housing': 2000, 'Rent': 2000, 'Mortgage': 2000,
-      'Food': 600, 'Groceries': 500, 'Dining': 200, 'Restaurants': 200,
-      'Transportation': 300, 'Gas': 200, 'Car': 400,
-      'Entertainment': 150, 'Subscriptions': 50, 'Streaming': 30,
-      'Healthcare': 200, 'Medical': 200,
-      'Shopping': 300, 'Clothing': 150,
-      'Utilities': 250, 'Insurance': 300,
-      'Education': 200, 'Personal': 200,
-      'Savings': 500, 'Investment': 500,
+  // Real budgets persisted in DB (Budget + BudgetItem tables)
+  const { data: apiBudgets } = useFinanceBudgets()
+  const createBudgetMutation = useCreateBudget()
+
+  // Flatten DB budgets → categoryId -> amount.  We pick the most recent
+  // budget (DESC) whose items cover the category; later budgets override.
+  const userBudgetMap = useMemo(() => {
+    const map: Record<string, number> = {}
+    const list = (apiBudgets as Array<{ items?: Array<{ categoryId: string; amount: number }> }> | undefined) ?? []
+    for (const b of list) {
+      for (const item of b.items ?? []) {
+        if (item.categoryId && typeof item.amount === 'number') {
+          map[item.categoryId] = item.amount
+        }
+      }
     }
+    return map
+  }, [apiBudgets])
+
+  // Sensible defaults for common category names — used as a final fallback
+  // when neither the DB nor estimation can produce a useful number.
+  const categoryBudgetDefaults: Record<string, number> = {
+    'Housing': 2000, 'Rent': 2000, 'Mortgage': 2000,
+    'Food': 600, 'Groceries': 500, 'Dining': 200, 'Restaurants': 200,
+    'Transportation': 300, 'Gas': 200, 'Car': 400,
+    'Entertainment': 150, 'Subscriptions': 50, 'Streaming': 30,
+    'Healthcare': 200, 'Medical': 200,
+    'Shopping': 300, 'Clothing': 150,
+    'Utilities': 250, 'Insurance': 300,
+    'Education': 200, 'Personal': 200,
+    'Savings': 500, 'Investment': 500,
+  }
+
+  // Budget data — DB value > category-name default > spending-based estimate
+  const budgetData = useMemo(() => {
     return categories.filter(c => c.type === 'expense').map(cat => {
-      const spent = transactions.filter(t => t.categoryId === cat.id && t.type === 'expense').reduce((acc, t) => acc + Math.abs(t.amount), 0)
-      // Find matching budget by category name, fallback to proportional budget based on total expenses
-      const budget = categoryBudgets[cat.name] || Math.max(500, Math.ceil((spent * 1.5) / 100) * 100)
-      return { id: cat.id, name: cat.name, icon: cat.icon, color: cat.color, spent, budget, percentage: Math.min(100, Math.round((spent / budget) * 100)) }
+      const spent = transactions
+        .filter(t => t.categoryId === cat.id && t.type === 'expense')
+        .reduce((acc, t) => acc + Math.abs(t.amount), 0)
+      const budget =
+        userBudgetMap[cat.id] ??
+        categoryBudgetDefaults[cat.name] ??
+        Math.max(500, Math.ceil((spent * 1.5) / 100) * 100)
+      const isUserSet = userBudgetMap[cat.id] != null
+      return {
+        id: cat.id,
+        name: cat.name,
+        icon: cat.icon,
+        color: cat.color,
+        spent,
+        budget,
+        isUserSet,
+        percentage: Math.min(100, Math.round((spent / budget) * 100)),
+      }
     })
-  }, [categories, transactions])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categories, transactions, userBudgetMap])
+
+  // Open the budget management dialog with current values pre-filled
+  const openBudgetDialog = useCallback(() => {
+    const draft: Record<string, string> = {}
+    for (const b of budgetData) draft[b.id] = String(b.budget)
+    setDraftBudgets(draft)
+    setBudgetDialogOpen(true)
+  }, [budgetData])
+
+  // Save the draft budgets — creates a fresh Budget row (current month) with
+  // BudgetItem rows for each non-zero amount.  Later loads supersede earlier
+  // ones because we sort DESC and the latter value wins.
+  const handleSaveBudgets = useCallback(() => {
+    const now = new Date()
+    const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString()
+    const items = Object.entries(draftBudgets)
+      .map(([categoryId, raw]) => ({ categoryId, amount: parseFloat(raw) || 0 }))
+      .filter(it => it.amount > 0)
+    if (items.length === 0) {
+      setBudgetDialogOpen(false)
+      return
+    }
+    createBudgetMutation.mutate(
+      {
+        name: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')} Budget`,
+        period: 'monthly',
+        startDate: start,
+        endDate: end,
+        items,
+      },
+      {
+        onSuccess: () => {
+          setBudgetDialogOpen(false)
+          showToast.success(t('finance.budgetSaved'))
+        },
+      },
+    )
+  }, [draftBudgets, createBudgetMutation, t])
   const [searchQuery, setSearchQuery] = useState('')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [newTransaction, setNewTransaction] = useState({ description: '', amount: '', type: 'expense' as Transaction['type'], categoryId: '', accountId: '', date: new Date().toISOString().split('T')[0] })
@@ -393,6 +476,25 @@ export function FinancePage() {
       }
     })
   }, [newTransaction, categories, createTransactionMutation])
+
+  const handleExportReport = useCallback(() => {
+    const dates = filteredTransactions.map(t => new Date(t.date).getTime())
+    const range = dates.length > 0 ? {
+      start: new Date(Math.min(...dates)).toISOString(),
+      end: new Date(Math.max(...dates)).toISOString(),
+    } : { start: '', end: '' }
+
+    exportFinanceReportToPDF({
+      accounts,
+      transactions: filteredTransactions,
+      budgets: [], // Add budgets if needed
+      dateRange: range,
+      totalIncome,
+      totalExpense: totalExpenses,
+      currency: baseCurrency,
+    })
+    showToast.success('PDF Report exported')
+  }, [accounts, filteredTransactions, totalIncome, totalExpenses, baseCurrency])
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6 animate-page-enter">
@@ -844,6 +946,9 @@ export function FinancePage() {
               </Button>
             </label>
           )}
+          <Button size="sm" variant="outline" onClick={handleExportReport} className="h-8 gap-1.5 text-xs">
+            <FileDown className="h-3.5 w-3.5" />PDF Dışa Aktar
+          </Button>
         </div>
         <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
           <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1.5" />{t('finance.newTransaction')}</Button></DialogTrigger>
@@ -878,6 +983,18 @@ export function FinancePage() {
 
       {financeView === 'budget' && (
         <div className="space-y-4">
+          {/* Manage budgets button */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold">{t('finance.monthlyBudget')}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('finance.monthlyBudgetSubtitle')}</p>
+            </div>
+            <Button size="sm" variant="outline" onClick={openBudgetDialog}>
+              <Pencil className="h-3.5 w-3.5 mr-1.5" />
+              {t('finance.manageBudgets')}
+            </Button>
+          </div>
+
           {/* Budget Alerts */}
           {(() => {
             const overBudget = budgetData.filter(b => b.percentage >= 100)
@@ -936,13 +1053,63 @@ export function FinancePage() {
                     )}
                     <div className="flex justify-between mt-1.5">
                       <span className={cn('text-xs font-medium', item.percentage >= 90 ? 'text-red-500' : item.percentage >= 70 ? 'text-amber-500' : '')} style={item.percentage < 70 ? { color: accentHex } : undefined}>{item.percentage}% {t('finance.used')}</span>
-                      <span className="text-xs text-muted-foreground">${Math.max(0, item.budget - item.spent).toFixed(0)} {t('finance.remaining')}</span>
+                      <span className="text-xs text-muted-foreground">{formatCurrency(Math.max(0, item.budget - item.spent), baseCurrency)} {t('finance.remaining')}</span>
                     </div>
+                    {item.isUserSet && (
+                      <span className="absolute top-3 right-3 text-[10px] text-muted-foreground/60">{t('finance.userSet')}</span>
+                    )}
                   </CardContent>
                 </Card>
               </motion.div>
             ))
           )}
+
+          {/* Budget management dialog */}
+          <Dialog open={budgetDialogOpen} onOpenChange={setBudgetDialogOpen}>
+            <DialogContent className="max-w-lg" aria-describedby={undefined}>
+              <DialogHeader>
+                <DialogTitle>{t('finance.manageBudgets')}</DialogTitle>
+                <DialogDescription className="sr-only">{t('finance.manageBudgets')}</DialogDescription>
+              </DialogHeader>
+              <ScrollArea className="max-h-[420px]">
+                <div className="space-y-2 py-2 pr-3">
+                  {budgetData.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      {t('finance.addExpenseCategories')}
+                    </p>
+                  ) : (
+                    budgetData.map((item) => (
+                      <div key={item.id} className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent/30">
+                        <span className="text-lg shrink-0">{item.icon}</span>
+                        <span className="flex-1 text-sm font-medium truncate">{item.name}</span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Input
+                            type="number"
+                            min="0"
+                            step="10"
+                            value={draftBudgets[item.id] ?? ''}
+                            onChange={(e) =>
+                              setDraftBudgets((prev) => ({ ...prev, [item.id]: e.target.value }))
+                            }
+                            className="h-8 w-28 text-right"
+                          />
+                          <span className="text-xs text-muted-foreground w-10">{baseCurrency}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline">{t('cancel')}</Button>
+                </DialogClose>
+                <Button onClick={handleSaveBudgets} disabled={createBudgetMutation.isPending}>
+                  {t('save')}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
 

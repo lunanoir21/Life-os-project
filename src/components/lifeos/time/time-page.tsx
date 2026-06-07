@@ -972,7 +972,7 @@ export function TimePage() {
                         )} />
                       </div>
                       <Input
-                        placeholder="What are you working on?"
+                        placeholder={t('timeTracker.whatAreYouWorkingOn')}
                         value={timerDescription}
                         onChange={e => setTimerDescription(e.target.value)}
                         disabled={isRunning}
@@ -983,7 +983,7 @@ export function TimePage() {
                       <Select value={timerTaskId} onValueChange={setTimerTaskId} disabled={isRunning}>
                         <SelectTrigger className="w-48 h-8 text-xs">
                           <Link2 className="h-3 w-3 mr-1 text-muted-foreground" />
-                          <SelectValue placeholder="Link to task..." />
+                          <SelectValue placeholder={t('timeTracker.linkToTask')} />
                         </SelectTrigger>
                         <SelectContent>
                           {tasks.map(t => (
@@ -1169,7 +1169,7 @@ export function TimePage() {
                   className="text-center py-12 text-muted-foreground"
                 >
                   <Timer className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">No time entries today. Start tracking!</p>
+                  <p className="text-sm">{t('timeTracker.noEntriesStart')}</p>
                 </motion.div>
               ) : (
                 todayEntries.map((entry, idx) => (
