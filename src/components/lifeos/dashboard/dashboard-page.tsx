@@ -58,7 +58,6 @@ import { WeeklyReview } from '@/components/lifeos/dashboard/weekly-review'
 import { QuickCapture } from '@/components/lifeos/dashboard/quick-capture'
 import { DailyPlannerWidget } from '@/components/lifeos/dashboard/daily-planner-widget'
 import { OnboardingTips } from '@/components/lifeos/onboarding-tips'
-import { AIInsights } from '@/components/lifeos/dashboard/ai-insights'
 import { format, subDays, addDays } from 'date-fns'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
@@ -197,7 +196,7 @@ export function DashboardPage() {
   const allWidgetIds = [
     'day-progress', 'stats-cards', 'today-tasks', 'weekly-activity',
     'quick-capture', 'progress-ring', 'upcoming-events', 'mood-logger',
-    'journal-prompts', 'onboarding-tips', 'ai-insights', 'daily-planner',
+    'journal-prompts', 'onboarding-tips', 'daily-planner',
   ]
 
   // ── DB persistence for widget layout ────────────────────────────────────
@@ -256,7 +255,6 @@ export function DashboardPage() {
     'mood-logger': t('dashboard.widgetMoodLogger'),
     'journal-prompts': t('dashboard.widgetJournalPrompts'),
     'onboarding-tips': t('dashboard.widgetOnboardingTips'),
-    'ai-insights': t('dashboard.widgetAiInsights'),
     'daily-planner': t('dashboard.widgetDailyPlanner'),
   }), [t])
 
@@ -1161,9 +1159,6 @@ export function DashboardPage() {
 
           {/* Journal Prompts */}
           {dashboardWidgets.includes('journal-prompts') && <JournalPrompts />}
-
-          {/* AI Insights */}
-          {dashboardWidgets.includes('ai-insights') && <AIInsights />}
 
           {/* Onboarding Tips */}
           {dashboardWidgets.includes('onboarding-tips') && <OnboardingTips />}

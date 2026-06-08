@@ -113,7 +113,6 @@ life-os/
 - 🔍 Global arama
 - 🎯 Odak modu (`F11`)
 - 📊 Haftalık değerlendirme
-- 🤖 AI içgörüleri
 - ⌨️ Klavye kısayolları
 - 💾 Veri dışa/içe aktarma
 - 🌍 5 dil desteği

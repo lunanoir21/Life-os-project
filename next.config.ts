@@ -72,8 +72,7 @@ const nextConfig: NextConfig = {
       ...proxy("/api/search"),
       ...proxy("/api/activity"),
       ...proxy("/api/dashboard"),
-      ...proxy("/api/insights"),
-      ...proxy("/api/ai"),
+      ...proxy("/api/analytics"),
       ...proxy("/api/weekly-review"),
       ...proxy("/api/data"),
     ];

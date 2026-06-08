@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Separator } from '@/components/ui/separator'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -208,9 +208,18 @@ export function CalendarPage() {
   const goToToday = () => setCurrentDate(new Date())
 
   const handleAddEvent = useCallback(() => {
-    if (!newEvent.title.trim()) return
-    const startDateTime = newEvent.allDay ? newEvent.date : `${newEvent.date}T${newEvent.startTime}:00`
-    const endDateTime = newEvent.allDay ? null : `${newEvent.date}T${newEvent.endTime}:00`
+    if (!newEvent.title.trim()) {
+      showToast.error(t('calendar.titleRequired') || 'Başlık gereklidir')
+      return
+    }
+    // Create proper ISO 8601 date strings with timezone
+    const startDateTime = newEvent.allDay 
+      ? new Date(newEvent.date).toISOString() 
+      : new Date(`${newEvent.date}T${newEvent.startTime}:00`).toISOString()
+    const endDateTime = newEvent.allDay 
+      ? null 
+      : new Date(`${newEvent.date}T${newEvent.endTime}:00`).toISOString()
+    
     createEventMutation.mutate({
       title: newEvent.title,
       description: newEvent.description || null,
@@ -225,6 +234,9 @@ export function CalendarPage() {
         setNewEvent({ title: '', description: '', date: format(new Date(), 'yyyy-MM-dd'), startTime: '09:00', endTime: '10:00', allDay: false, color: '#10b981', location: '', recurrence: 'none' })
         setCreateDialogOpen(false)
         showToast.success(t('toast.created'))
+      },
+      onError: (error: Error) => {
+        showToast.error(t('toast.error') || 'Bir hata oluştu: ' + error.message)
       }
     })
   }, [newEvent, createEventMutation, t])
@@ -235,7 +247,10 @@ export function CalendarPage() {
   }, [])
 
   const handleUpdateEvent = useCallback(() => {
-    if (!editEvent || !editEvent.title.trim()) return
+    if (!editEvent || !editEvent.title.trim()) {
+      showToast.error(t('calendar.titleRequired') || 'Başlık gereklidir')
+      return
+    }
     updateEventMutation.mutate({
       id: editEvent.id,
       title: editEvent.title,
@@ -247,6 +262,9 @@ export function CalendarPage() {
         setEditDialogOpen(false)
         setEditEvent(null)
         showToast.success(t('toast.saved'))
+      },
+      onError: (error: Error) => {
+        showToast.error(t('toast.error') || 'Bir hata oluştu: ' + error.message)
       }
     })
   }, [editEvent, updateEventMutation, t])
@@ -571,6 +589,19 @@ export function CalendarPage() {
                       <Input placeholder={t('calendar.optional')} value={newEvent.location} onChange={e => setNewEvent(p => ({ ...p, location: e.target.value }))} />
                     </div>
                   </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="allDay" 
+                      checked={newEvent.allDay} 
+                      onCheckedChange={(checked) => setNewEvent(p => ({ ...p, allDay: checked === true }))}
+                    />
+                    <label
+                      htmlFor="allDay"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      {t('calendar.allDay')}
+                    </label>
+                  </div>
                   <div>
                     <label className="text-sm font-medium mb-1.5 block">{t('calendar.recurrence')}</label>
                     <Select value={newEvent.recurrence} onValueChange={v => setNewEvent(p => ({ ...p, recurrence: v }))}>
@@ -583,6 +614,7 @@ export function CalendarPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                  {!newEvent.allDay && (
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="text-sm font-medium mb-1.5 block">{t('calendar.start')}</label>
@@ -606,6 +638,7 @@ export function CalendarPage() {
                       </div>
                     </div>
                   </div>
+                  )}
                 </div>
                 <DialogFooter>
                   <DialogClose asChild><Button variant="outline">{t('cancel')}</Button></DialogClose>

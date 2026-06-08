@@ -1,6 +1,7 @@
 #![allow(unused_assignments)] // push_set!/sep! macros leave `first` written but unread after last use
 
 mod activity;
+mod analytics;
 mod courses;
 mod dashboard;
 mod data;
@@ -11,7 +12,6 @@ mod finance;
 mod goals;
 mod habit_logs;
 mod habits;
-mod insights;
 mod journal;
 mod note_folders;
 mod notes;
@@ -253,8 +253,7 @@ pub fn build_app(pool: SqlitePool) -> Router {
             get(widgets::get_widgets).put(widgets::save_widgets),
         )
         .route("/api/notifications", get(notifications::get_notifications))
-        .route("/api/insights", get(insights::get_insights))
-        .route("/api/ai/insights", get(insights::get_ai_insights))
+        .route("/api/insights", get(analytics::get_analytics))
         .route("/api/weekly-review", get(weekly_review::get_weekly_review))
         .route("/api/search", get(search::search))
         .route("/api/activity", get(activity::get_activity))

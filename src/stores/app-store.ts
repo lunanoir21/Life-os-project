@@ -125,7 +125,7 @@ export const useAppStore = create<AppState>()(
       setFontSize: (size) => set({ fontSize: size }),
       theme: 'dark',
       setTheme: (theme) => set({ theme }),
-      dashboardWidgets: ['day-progress', 'stats-cards', 'today-tasks', 'weekly-activity', 'quick-capture', 'progress-ring', 'upcoming-events', 'mood-logger', 'journal-prompts', 'onboarding-tips', 'ai-insights', 'daily-planner'],
+      dashboardWidgets: ['day-progress', 'stats-cards', 'today-tasks', 'weekly-activity', 'quick-capture', 'progress-ring', 'upcoming-events', 'mood-logger', 'journal-prompts', 'onboarding-tips', 'daily-planner'],
       setDashboardWidgets: (widgets) => set({ dashboardWidgets: widgets }),
 
       // Appearance preferences

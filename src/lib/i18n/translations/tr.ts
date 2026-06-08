@@ -150,7 +150,6 @@ const tr: TranslationKeys = {
     widgetMoodLogger: 'Ruh Hali Kaydedici',
     widgetJournalPrompts: 'Günlük İpuçları',
     widgetOnboardingTips: 'Başlangıç İpuçları',
-    widgetAiInsights: 'AI İçgörüleri',
     widgetDailyPlanner: 'Günlük Planlayıcı',
     hero: {
       tasks: 'Görevler',
@@ -568,7 +567,6 @@ const tr: TranslationKeys = {
     categories: {
       language: 'Dil Öğrenme',
       programming: 'Programlama & Geliştirme',
-      'data-ai': 'Veri & Yapay Zeka',
       design: 'Tasarım',
       business: 'İş & Kariyer',
       creative: 'Yaratıcı',
@@ -611,6 +609,7 @@ const tr: TranslationKeys = {
     daily: 'Günlük',
     weekly: 'Haftalık',
     monthly: 'Aylık',
+    titleRequired: 'Başlık gereklidir',
   },
 
   // Time Tracker
@@ -864,7 +863,6 @@ const tr: TranslationKeys = {
       'quick-stats': { label: 'Hızlı İstatistikler', desc: 'Bir bakışta önemli metrikler' },
       quote: { label: 'Motivasyon Sözü', desc: 'Günlük ilham ve motivasyon' },
       'weekly-activity': { label: 'Haftalık Etkinlik Grafiği', desc: 'Görsel haftalık ilerleme özeti' },
-      'smart-insights': { label: 'Akıllı İçgörüler', desc: 'Yapay zekâ destekli üretkenlik ipuçları' },
       'daily-planner': { label: 'Günlük Planlayıcı', desc: 'Gününüzü zaman çizelgesiyle planlayın' },
       'mood-tracker': { label: 'Ruh Hâli Takibi', desc: 'Ruh hâlinizi takip edin ve görselleştirin' },
       'activity-feed': { label: 'Etkinlik Akışı', desc: 'Modüller arası son etkinlikler' },
@@ -954,15 +952,6 @@ const tr: TranslationKeys = {
     highlights: 'Öne Çıkanlar',
     areasForImprovement: 'Geliştirme Alanları',
     nextWeekGoals: 'Gelecek Hafta Hedefleri',
-  },
-
-  // AI Insights
-  aiInsights: {
-    title: 'AI İçgörüleri',
-    productivityScore: 'Verimlilik Skoru',
-    wellnessScore: 'Sağlık Skoru',
-    suggestion: 'Öneri',
-    basedOnActivity: 'Son aktivitelerinize göre',
   },
 
   // Mood Tracker

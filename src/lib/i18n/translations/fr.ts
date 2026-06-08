@@ -141,7 +141,6 @@ const fr: TranslationKeys = {
     widgetMoodLogger: "Enregistreur d'humeur",
     widgetJournalPrompts: 'Suggestions de journal',
     widgetOnboardingTips: "Conseils d'initiation",
-    widgetAiInsights: 'Insights IA',
     widgetDailyPlanner: 'Planificateur quotidien',
     hero: {
       tasks: 'Tâches',
@@ -550,7 +549,6 @@ const fr: TranslationKeys = {
     categories: {
       language: 'Apprentissage des langues',
       programming: 'Programmation et développement',
-      'data-ai': 'Données et IA',
       design: 'Design',
       business: 'Business et carrière',
       creative: 'Créatif',
@@ -592,6 +590,7 @@ const fr: TranslationKeys = {
     daily: 'Quotidien',
     weekly: 'Hebdomadaire',
     monthly: 'Mensuel',
+    titleRequired: 'Le titre est requis',
   },
 
   timeTracker: {
@@ -825,7 +824,6 @@ const fr: TranslationKeys = {
       'quick-stats': { label: 'Stats rapides', desc: "Indicateurs clés en un coup d'œil" },
       quote: { label: 'Citation motivante', desc: 'Inspiration quotidienne' },
       'weekly-activity': { label: 'Activité hebdo', desc: 'Aperçu visuel des progrès' },
-      'smart-insights': { label: 'Aperçus malins', desc: 'Conseils de productivité par IA' },
       'daily-planner': { label: 'Planificateur quotidien', desc: 'Planifie ta journée avec timeline' },
       'mood-tracker': { label: 'Humeur', desc: 'Suis et visualise ton humeur' },
       'activity-feed': { label: "Fil d'activité", desc: 'Activité récente cross-module' },
@@ -910,14 +908,6 @@ const fr: TranslationKeys = {
     highlights: 'Points forts',
     areasForImprovement: "Domaines d'amélioration",
     nextWeekGoals: 'Objectifs de la semaine prochaine',
-  },
-
-  aiInsights: {
-    title: 'Insights IA',
-    productivityScore: 'Score de productivité',
-    wellnessScore: 'Score de bien-être',
-    suggestion: 'Suggestion',
-    basedOnActivity: 'Basé sur votre activité récente',
   },
 
   moodTracker: {

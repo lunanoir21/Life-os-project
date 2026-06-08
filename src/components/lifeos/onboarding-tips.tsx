@@ -51,7 +51,7 @@ const tipDefinitions: TipData[] = [
     id: 3,
     icon: BarChart3,
     title: 'Weekly Review',
-    description: 'Check your Weekly Review for insights on your productivity and wellness',
+    description: 'Check your Weekly Review for an analysis of your productivity and wellness',
     actionLabel: 'Open Review',
     actionKey: 'weekly-review',
   },

@@ -157,7 +157,7 @@ All 23 backend modules have integration test coverage:
 | note_folders | ✅ | Create, list |
 | profile | ✅ | CRUD operations |
 | dashboard | ✅ | Aggregation endpoint |
-| insights | ✅ | Analytics endpoint |
+| analytics | ✅ | Analytics endpoint |
 | weekly_review | ✅ | Summary endpoint |
 | activity | ✅ | Activity tracking |
 | search | ✅ | Search functionality |

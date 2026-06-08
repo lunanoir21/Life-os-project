@@ -185,7 +185,7 @@ SQLite veritabanı `prisma/dev.db` dosyasında lokal olarak saklanır.
 
 ### Internet bağlantısı gerekli mi?
 
-Hayır, Life OS tamamen lokal çalışır. AI Insights özelliği hariç.
+Hayır, Life OS tamamen lokal çalışır.
 
 ### Mobil uyumlu mu?
 

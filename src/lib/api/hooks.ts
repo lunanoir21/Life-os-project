@@ -14,9 +14,10 @@ export function useDashboard() {
 }
 
 // ============================================
-// Insights
+// Analytics
 // ============================================
-export interface Insight {
+// Analytics
+export interface Analytic {
   id: string
   category: 'productivity' | 'wellness' | 'finance' | 'goals'
   title: string
@@ -26,23 +27,22 @@ export interface Insight {
   module: string
 }
 
-export interface InsightsData {
+export interface AnalyticsData {
   productivityScore: number
   wellnessScore: number
   productivityTrend: 'up' | 'down' | 'stable'
   wellnessTrend: 'up' | 'down' | 'stable'
-  insights: Insight[]
+  analytics: Analytic[]
   generatedAt: string
 }
 
-export function useInsights() {
+export function useAnalytics() {
   return useQuery({
-    queryKey: ['insights'],
-    queryFn: () => apiGet<InsightsData>('/api/insights'),
+    queryKey: ['analytics'],
+    queryFn: () => apiGet<AnalyticsData>('/api/analytics'),
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 }
-
 // ============================================
 // Tasks
 // ============================================
@@ -497,7 +497,7 @@ export interface NotificationItem {
     | 'habit-reminder' | 'streak-milestone' | 'habit-missed'
     | 'goal-deadline' | 'goal-progress' | 'goal-completed'
     | 'budget-alert' | 'large-transaction'
-    | 'writing-reminder' | 'mood-insight'
+    | 'writing-reminder' | 'mood-reflection'
     | 'data-backup' | 'update-notification'
   title: string
   description: string

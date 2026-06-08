@@ -475,8 +475,8 @@ pub async fn get_notifications(
             let avg = scores.iter().sum::<i64>() as f64 / scores.len() as f64;
             if avg <= 2.0 {
                 notifications.push(Notification {
-                    id: notif_id(), r#type: "mood-insight".to_string(),
-                    title: "Mood Insight 🧠".to_string(),
+                    id: notif_id(), r#type: "mood-reflection".to_string(),
+                    title: "Mood Reflection 🧘".to_string(),
                     description: "Your mood has been lower than usual this week. Consider self-care activities or reaching out.".to_string(),
                     module: "journal".to_string(), priority: "medium".to_string(),
                     created_at: now_iso.clone(), read: false,

@@ -24,7 +24,7 @@ fn calc_trend(current: f64, previous: f64) -> &'static str {
     }
 }
 
-pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json::Value>, AppError> {
+pub async fn get_analytics(State(st): State<AppState>) -> Result<Json<serde_json::Value>, AppError> {
     let now = now_ms();
     let today_ms = {
         let s = now / 1000;
@@ -65,7 +65,7 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
         (tms, lms, lme)
     };
 
-    let mut insights: Vec<serde_json::Value> = Vec::new();
+    let mut analytics: Vec<serde_json::Value> = Vec::new();
 
     // Tasks
     let all_tasks = sqlx::query(
@@ -141,7 +141,7 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
         .count() as i64;
 
     if overdue > 0 {
-        insights.push(serde_json::json!({
+        analytics.push(serde_json::json!({
             "id": insight_id(), "category": "productivity",
             "title": "Overdue Tasks Need Attention",
             "description": format!("You have {} overdue task{}. Consider reprioritizing or breaking them into smaller steps.", overdue, if overdue > 1 { "s" } else { "" }),
@@ -157,7 +157,7 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
         } else {
             0
         };
-        insights.push(serde_json::json!({
+        analytics.push(serde_json::json!({
             "id": insight_id(), "category": "productivity",
             "title": "Weekly Task Progress",
             "description": format!("You've completed {:.0} task{} this week, {} {}% from last week's {:.0}. {}",
@@ -228,7 +228,7 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
     }
 
     if max_streak >= 3 {
-        insights.push(serde_json::json!({
+        analytics.push(serde_json::json!({
             "id": insight_id(), "category": "wellness",
             "title": "Habit Streak Achievement",
             "description": format!("You've maintained a {}-day streak on \"{}\" — {}",
@@ -243,7 +243,7 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
     }
 
     if total_habits > 0.0 {
-        insights.push(serde_json::json!({
+        analytics.push(serde_json::json!({
             "id": insight_id(), "category": "wellness",
             "title": "Habit Consistency",
             "description": format!("You've completed {:.0} of {:.0} habits today ({:.0}%). {}",
@@ -301,7 +301,7 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
             })
             .count() as i64;
 
-        insights.push(serde_json::json!({
+        analytics.push(serde_json::json!({
             "id": insight_id(), "category": "goals",
             "title": "Goal Progress Overview",
             "description": format!("Across {} active goal{}, average progress is {:.0}%. {}",
@@ -338,7 +338,7 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
         } else {
             0
         };
-        insights.push(serde_json::json!({
+        analytics.push(serde_json::json!({
             "id": insight_id(), "category": "finance",
             "title": "Spending Pattern Analysis",
             "description": format!("{} {}% compared to last month. {} {}",
@@ -366,7 +366,7 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
         0.0
     };
     if journal_scores.len() >= 3 {
-        insights.push(serde_json::json!({
+        analytics.push(serde_json::json!({
             "id": insight_id(), "category": "wellness",
             "title": "Mood Patterns",
             "description": format!("Your average mood over the past 2 weeks is {:.1}/5. {}",
@@ -407,32 +407,32 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
         "down"
     };
 
-    // Ensure at least 4 insights
+    // Ensure at least 4 analytics
     if total_tasks == 0.0 {
-        insights.push(serde_json::json!({ "id": insight_id(), "category": "productivity", "title": "Start Tracking Tasks", "description": "No tasks found yet. Start adding tasks to get personalized productivity insights.", "trend": "stable", "module": "tasks" }));
+        analytics.push(serde_json::json!({ "id": insight_id(), "category": "productivity", "title": "Start Tracking Tasks", "description": "No tasks found yet. Start adding tasks to manage your daily workflow.", "trend": "stable", "module": "tasks" }));
     }
     if total_habits == 0.0 {
-        insights.push(serde_json::json!({ "id": insight_id(), "category": "wellness", "title": "Build Healthy Habits", "description": "No habits tracked yet. Create daily habits to build consistency.", "trend": "stable", "module": "habits" }));
+        analytics.push(serde_json::json!({ "id": insight_id(), "category": "wellness", "title": "Build Healthy Habits", "description": "No habits tracked yet. Create daily habits to build consistency.", "trend": "stable", "module": "habits" }));
     }
     if active_goals.is_empty() {
-        insights.push(serde_json::json!({ "id": insight_id(), "category": "goals", "title": "Set Meaningful Goals", "description": "No active goals found. Setting clear, measurable goals is the first step toward achieving them.", "trend": "stable", "module": "goals" }));
+        analytics.push(serde_json::json!({ "id": insight_id(), "category": "goals", "title": "Set Meaningful Goals", "description": "No active goals found. Setting clear, measurable goals is the first step toward achieving them.", "trend": "stable", "module": "goals" }));
     }
     if this_month_expenses == 0.0 && this_month_income == 0.0 {
-        insights.push(serde_json::json!({ "id": insight_id(), "category": "finance", "title": "Track Your Finances", "description": "No financial transactions recorded yet. Start tracking income and expenses.", "trend": "stable", "module": "finance" }));
+        analytics.push(serde_json::json!({ "id": insight_id(), "category": "finance", "title": "Track Your Finances", "description": "No financial transactions recorded yet. Start tracking income and expenses.", "trend": "stable", "module": "finance" }));
     }
 
     // Pick 1 per category, then fill up to 6
     let categories = ["productivity", "wellness", "finance", "goals"];
     let mut selected: Vec<serde_json::Value> = Vec::new();
     for cat in &categories {
-        if let Some(i) = insights
+        if let Some(i) = analytics
             .iter()
             .find(|i| i["category"].as_str() == Some(cat))
         {
             selected.push(i.clone());
         }
     }
-    for i in &insights {
+    for i in &analytics {
         if selected.len() >= 6 {
             break;
         }
@@ -447,59 +447,7 @@ pub async fn get_insights(State(st): State<AppState>) -> Result<Json<serde_json:
         "wellnessScore": wellness_score,
         "productivityTrend": productivity_trend,
         "wellnessTrend": wellness_trend,
-        "insights": selected,
+        "analytics": selected,
         "generatedAt": crate::prisma_dt::PrismaDateTime(now).to_iso(),
     })))
-}
-
-pub async fn get_ai_insights(
-    State(st): State<AppState>,
-) -> Result<Json<serde_json::Value>, AppError> {
-    let now = now_ms();
-    let hour = (now / 3_600_000) % 24;
-
-    let task_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM Task WHERE archived = 0")
-        .fetch_one(&st.db)
-        .await?;
-    let completed: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM Task WHERE status = 'done' AND archived = 0")
-            .fetch_one(&st.db)
-            .await?;
-    let pending = task_count - completed;
-    let habit_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM Habit WHERE archived = 0")
-        .fetch_one(&st.db)
-        .await?;
-
-    let mut insights = Vec::<serde_json::Value>::new();
-
-    if pending > 5 {
-        insights.push(serde_json::json!({ "title": "Focus Priority", "text": format!("You have {} pending tasks. Start with the highest priority one and work through them systematically.", pending) }));
-    } else if pending > 0 {
-        insights.push(serde_json::json!({ "title": "Task Momentum", "text": format!("{} task{} remaining. You're making great progress — keep the momentum going!", pending, if pending > 1 { "s" } else { "" }) }));
-    } else if task_count == 0 {
-        insights.push(serde_json::json!({ "title": "Get Started", "text": "No tasks yet? Start by adding your top 3 priorities for the day." }));
-    }
-
-    if completed > 0 {
-        insights.push(serde_json::json!({ "title": "Progress Check", "text": format!("You've completed {} task{}. {}", completed, if completed > 1 { "s" } else { "" }, if completed >= 5 { "Outstanding productivity today!" } else { "Keep building on this momentum!" }) }));
-    }
-
-    if habit_count == 0 {
-        insights.push(serde_json::json!({ "title": "Build Habits", "text": "Start building positive habits today. Even one small daily habit can create big changes over time." }));
-    } else {
-        insights.push(serde_json::json!({ "title": "Habit Power", "text": format!("You're tracking {} habit{}. Consistency is the key — try to complete them at the same time each day.", habit_count, if habit_count > 1 { "s" } else { "" }) }));
-    }
-
-    if hour < 10 {
-        insights.push(serde_json::json!({ "title": "Morning Focus", "text": "Start your day by tackling the most important task first. Morning hours are peak productivity time." }));
-    } else if hour < 14 {
-        insights.push(serde_json::json!({ "title": "Midday Check", "text": "How's your day going? Take a moment to review your progress and adjust priorities if needed." }));
-    } else if hour < 18 {
-        insights.push(serde_json::json!({ "title": "Afternoon Push", "text": "Keep the energy up! Break remaining tasks into smaller steps to maintain focus." }));
-    } else {
-        insights.push(serde_json::json!({ "title": "Evening Reflection", "text": "Wind down by reflecting on today's accomplishments and planning tomorrow's priorities." }));
-    }
-
-    let insights: Vec<serde_json::Value> = insights.into_iter().take(3).collect();
-    Ok(Json(serde_json::json!({ "insights": insights })))
 }

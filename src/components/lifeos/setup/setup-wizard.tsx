@@ -124,7 +124,6 @@ const dashboardWidgetOptions = [
   { id: 'quick-stats', icon: BarChart3, defaultOn: true },
   { id: 'quote', icon: Quote, defaultOn: true },
   { id: 'weekly-activity', icon: Activity, defaultOn: true },
-  { id: 'smart-insights', icon: Lightbulb, defaultOn: true },
   { id: 'daily-planner', icon: ClipboardList, defaultOn: false },
   { id: 'mood-tracker', icon: Smile, defaultOn: false },
   { id: 'activity-feed', icon: Rss, defaultOn: false },
@@ -219,7 +218,7 @@ export function SetupWizard() {
     ) as Record<string, { label: string; desc: string }>,
     widgetsIntro: t('setup.widgetsIntro'),
     widgets: Object.fromEntries(
-      ['quick-stats', 'quote', 'weekly-activity', 'smart-insights', 'daily-planner', 'mood-tracker', 'activity-feed'].map(id => [
+      ['quick-stats', 'quote', 'weekly-activity', 'daily-planner', 'mood-tracker', 'activity-feed'].map(id => [
         id,
         { label: t(`setup.widgets.${id}.label`), desc: t(`setup.widgets.${id}.desc`) },
       ])

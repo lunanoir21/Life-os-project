@@ -111,7 +111,7 @@ const typeToCategory: Record<NotificationItem['type'], NotificationCategory> = {
   'budget-alert': 'finance',
   'large-transaction': 'finance',
   'writing-reminder': 'journal',
-  'mood-insight': 'journal',
+  'mood-reflection': 'journal',
   'data-backup': 'system',
   'update-notification': 'system',
 }

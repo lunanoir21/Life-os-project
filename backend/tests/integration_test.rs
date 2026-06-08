@@ -844,14 +844,14 @@ async fn test_dashboard_endpoint() {
 }
 
 #[tokio::test]
-async fn test_insights_endpoint() {
+async fn test_analytics_endpoint() {
     let (app, _temp_db) = common::setup_test_app().await;
 
     let response = app
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/insights")
+                .uri("/api/analytics")
                 .body(Body::empty())
                 .unwrap(),
         )

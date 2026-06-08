@@ -3,7 +3,6 @@ export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced'
 export type PathCategory =
   | 'language'
   | 'programming'
-  | 'data-ai'
   | 'design'
   | 'business'
   | 'creative'
@@ -33,7 +32,6 @@ export interface LearningPath {
 export const categoryGradients: Record<PathCategory, string> = {
   language: 'from-rose-500/10 to-orange-500/10',
   programming: 'from-emerald-500/10 to-teal-500/10',
-  'data-ai': 'from-violet-500/10 to-purple-500/10',
   design: 'from-pink-500/10 to-fuchsia-500/10',
   business: 'from-amber-500/10 to-yellow-500/10',
   creative: 'from-cyan-500/10 to-sky-500/10',
@@ -44,7 +42,6 @@ export const categoryGradients: Record<PathCategory, string> = {
 export const categoryAccentColors: Record<PathCategory, string> = {
   language: '#f43f5e',
   programming: '#10b981',
-  'data-ai': '#8b5cf6',
   design: '#ec4899',
   business: '#f59e0b',
   creative: '#06b6d4',
@@ -303,23 +300,6 @@ export const learningPaths: LearningPath[] = [
     ],
   },
   {
-    id: 'python-data-science',
-    title: 'Python Data Science',
-    description: 'Learn data science with Python — data wrangling, visualization, statistical analysis, and exploratory analysis.',
-    category: 'data-ai',
-    icon: '📊',
-    difficulty: 'intermediate',
-    estimatedHours: 90,
-    tags: ['Python', 'Data Science', 'Statistics', 'Visualization'],
-    resources: [
-      { title: 'Python for Data Science Course', type: 'video', url: 'https://www.youtube.com/watch?v=LHBE6Q9XlzI' },
-      { title: 'Data Science Handbook', type: 'article', url: 'https://jakevdp.github.io/PythonDataScienceHandbook/' },
-      { title: 'Python for Data Analysis (Wes McKinney)', type: 'book', url: 'https://wesmckinney.com/book/' },
-      { title: 'Data Skeptic Podcast', type: 'podcast', url: 'https://dataskeptic.com/' },
-      { title: 'Kaggle Learn - Data Science', type: 'exercise', url: 'https://www.kaggle.com/learn' },
-    ],
-  },
-  {
     id: 'javascript-fundamentals',
     title: 'JavaScript Fundamentals',
     description: 'Master the building blocks of JavaScript — variables, functions, async programming, DOM manipulation, and ES6+.',
@@ -490,110 +470,6 @@ export const learningPaths: LearningPath[] = [
       { title: 'Full Stack Radio', type: 'podcast', url: 'https://www.fullstackradio.com/' },
       { title: 'Build a Full-Stack App Tutorial', type: 'exercise', url: 'https://www.freecodecamp.org/' },
       { title: 'Deploy with Vercel/Netlify', type: 'article', url: 'https://vercel.com/docs' },
-    ],
-  },
-
-  // ===== DATA & AI =====
-  {
-    id: 'ml-python',
-    title: 'Machine Learning with Python',
-    description: 'Learn ML fundamentals — supervised/unsupervised learning, scikit-learn, model evaluation, and real-world applications.',
-    category: 'data-ai',
-    icon: '🤖',
-    difficulty: 'intermediate',
-    estimatedHours: 100,
-    tags: ['ML', 'scikit-learn', 'Supervised', 'Models'],
-    resources: [
-      { title: 'Machine Learning with Python', type: 'video', url: 'https://www.coursera.org/learn/machine-learning-with-python' },
-      { title: 'Scikit-learn User Guide', type: 'article', url: 'https://scikit-learn.org/stable/user_guide.html' },
-      { title: 'Hands-On Machine Learning (Aurélien Géron)', type: 'book', url: 'https://www.oreilly.com/' },
-      { title: 'Linear Digressions Podcast', type: 'podcast', url: 'https://lineardigressions.com/' },
-      { title: 'Kaggle ML Competitions', type: 'exercise', url: 'https://www.kaggle.com/competitions' },
-    ],
-  },
-  {
-    id: 'deep-learning',
-    title: 'Deep Learning & Neural Networks',
-    description: 'Dive into deep learning — neural network architectures, CNNs, RNNs, transformers, and PyTorch/TensorFlow.',
-    category: 'data-ai',
-    icon: '🧠',
-    difficulty: 'advanced',
-    estimatedHours: 120,
-    tags: ['Deep Learning', 'Neural Networks', 'PyTorch', 'CNN'],
-    resources: [
-      { title: 'Deep Learning Specialization (Andrew Ng)', type: 'video', url: 'https://www.coursera.org/specializations/deep-learning' },
-      { title: 'Deep Learning Book', type: 'article', url: 'https://www.deeplearningbook.org/' },
-      { title: 'Deep Learning with Python (Chollet)', type: 'book', url: 'https://www.manning.com/' },
-      { title: 'Practical AI Podcast', type: 'podcast', url: 'https://changelog.com/practicalai' },
-      { title: 'PyTorch Tutorials', type: 'exercise', url: 'https://pytorch.org/tutorials/' },
-    ],
-  },
-  {
-    id: 'data-analysis-pandas',
-    title: 'Data Analysis with Pandas',
-    description: 'Master data analysis with Pandas — DataFrames, data cleaning, aggregation, and visualization techniques.',
-    category: 'data-ai',
-    icon: '📈',
-    difficulty: 'beginner',
-    estimatedHours: 50,
-    tags: ['Pandas', 'Data Analysis', 'DataFrames', 'Visualization'],
-    resources: [
-      { title: 'Pandas for Data Analysis Course', type: 'video', url: 'https://www.youtube.com/watch?v=vmEHCJofslg' },
-      { title: 'Pandas Official Documentation', type: 'article', url: 'https://pandas.pydata.org/docs/' },
-      { title: 'Python for Data Analysis (Wes McKinney)', type: 'book', url: 'https://wesmckinney.com/book/' },
-      { title: 'Data Science Friday Podcast', type: 'podcast', url: 'https://www.datacamp.com/' },
-      { title: 'Pandas Exercises', type: 'exercise', url: 'https://github.com/guipsamora/pandas_exercises' },
-    ],
-  },
-  {
-    id: 'nlp',
-    title: 'Natural Language Processing',
-    description: 'Explore NLP — text processing, sentiment analysis, word embeddings, transformers, and LLMs.',
-    category: 'data-ai',
-    icon: '💬',
-    difficulty: 'advanced',
-    estimatedHours: 90,
-    tags: ['NLP', 'Transformers', 'LLMs', 'Text'],
-    resources: [
-      { title: 'NLP with Python - spaCy Course', type: 'video', url: 'https://www.youtube.com/watch?v=cctH5mHp5UY' },
-      { title: 'Hugging Face NLP Course', type: 'article', url: 'https://huggingface.co/learn/nlp-course' },
-      { title: 'Speech and Language Processing (Jurafsky)', type: 'book', url: 'https://web.stanford.edu/~jurafsky/slp3/' },
-      { title: 'NLP Highlights Podcast', type: 'podcast', url: 'https://www.allennlp.org/podcast' },
-      { title: 'Hugging Face Transformers Practice', type: 'exercise', url: 'https://huggingface.co/docs/transformers/' },
-    ],
-  },
-  {
-    id: 'computer-vision',
-    title: 'Computer Vision',
-    description: 'Learn computer vision — image processing, object detection, image segmentation, and deep vision models.',
-    category: 'data-ai',
-    icon: '👁️',
-    difficulty: 'advanced',
-    estimatedHours: 100,
-    tags: ['CV', 'Image Processing', 'Object Detection', 'CNN'],
-    resources: [
-      { title: 'Computer Vision with OpenCV', type: 'video', url: 'https://www.youtube.com/watch?v=oXlwWbU8l2o' },
-      { title: 'OpenCV Documentation', type: 'article', url: 'https://docs.opencv.org/' },
-      { title: 'Computer Vision: Algorithms and Applications', type: 'book', url: 'https://szeliski.org/Book/' },
-      { title: 'Gradient Dissent Podcast', type: 'podcast', url: 'https://wandb.ai/gradient-dissent' },
-      { title: 'Kaggle CV Competitions', type: 'exercise', url: 'https://www.kaggle.com/competitions' },
-    ],
-  },
-  {
-    id: 'ai-ethics',
-    title: 'AI Ethics',
-    description: 'Understand the ethical implications of AI — bias, fairness, transparency, privacy, and responsible AI development.',
-    category: 'data-ai',
-    icon: '⚖️',
-    difficulty: 'intermediate',
-    estimatedHours: 40,
-    tags: ['AI Ethics', 'Fairness', 'Bias', 'Responsible AI'],
-    resources: [
-      { title: 'AI Ethics Course - Stanford', type: 'video', url: 'https://www.youtube.com/results?search_query=ai+ethics+stanford' },
-      { title: 'AI Ethics Guidelines - UNESCO', type: 'article', url: 'https://www.unesco.org/en/artificial-intelligence/recommendation-ethics' },
-      { title: 'Weapons of Math Destruction', type: 'book', url: 'https://www.penguinrandomhouse.com/' },
-      { title: 'AI Ethics Podcast', type: 'podcast', url: 'https://aipulse.org/' },
-      { title: 'Fairlearn - AI Fairness Toolkit', type: 'exercise', url: 'https://fairlearn.org/' },
     ],
   },
 
@@ -984,7 +860,7 @@ export const learningPaths: LearningPath[] = [
 ]
 
 export const categoryKeys: PathCategory[] = [
-  'language', 'programming', 'data-ai', 'design', 'business', 'creative', 'science', 'personal',
+  'language', 'programming', 'design', 'business', 'creative', 'science', 'personal',
 ]
 
 export function getPathsByCategory(category: PathCategory): LearningPath[] {

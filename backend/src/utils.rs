@@ -27,9 +27,23 @@ fn uuid_fallback() -> String {
 /// Parse an ISO string or numeric milliseconds to epoch-ms.
 pub fn value_to_ms(v: &Value) -> Option<i64> {
     match v {
-        Value::String(s) if !s.is_empty() => chrono::DateTime::parse_from_rfc3339(s)
-            .ok()
-            .map(|dt| dt.timestamp_millis()),
+        Value::String(s) if !s.is_empty() => {
+            // Try RFC3339 first (ISO 8601 with timezone)
+            if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
+                return Some(dt.timestamp_millis());
+            }
+            // Try naive datetime (YYYY-MM-DDTHH:MM:SS) without timezone
+            if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S") {
+                return Some(dt.and_utc().timestamp_millis());
+            }
+            // Try date only (YYYY-MM-DD) - assume midnight UTC
+            if let Ok(d) = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+                if let Some(dt) = d.and_hms_opt(0, 0, 0) {
+                    return Some(dt.and_utc().timestamp_millis());
+                }
+            }
+            None
+        }
         Value::Number(n) => n.as_i64(),
         _ => None,
     }

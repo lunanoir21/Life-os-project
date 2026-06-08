@@ -148,7 +148,6 @@ const en = {
     widgetMoodLogger: 'Mood Logger',
     widgetJournalPrompts: 'Journal Prompts',
     widgetOnboardingTips: 'Onboarding Tips',
-    widgetAiInsights: 'AI Insights',
     widgetDailyPlanner: 'Daily Planner',
     hero: {
       tasks: 'Tasks',
@@ -568,7 +567,6 @@ const en = {
     categories: {
       language: 'Language Learning',
       programming: 'Programming & Development',
-      'data-ai': 'Data & AI',
       design: 'Design',
       business: 'Business & Career',
       creative: 'Creative',
@@ -611,6 +609,7 @@ const en = {
     daily: 'Daily',
     weekly: 'Weekly',
     monthly: 'Monthly',
+    titleRequired: 'Title is required',
   },
 
   // Time Tracker
@@ -864,7 +863,6 @@ const en = {
       'quick-stats': { label: 'Quick Stats', desc: 'Key metrics at a glance' },
       quote: { label: 'Motivational Quote', desc: 'Daily inspiration and motivation' },
       'weekly-activity': { label: 'Weekly Activity Chart', desc: 'Visual weekly progress overview' },
-      'smart-insights': { label: 'Smart Insights', desc: 'AI-powered productivity tips' },
       'daily-planner': { label: 'Daily Planner', desc: 'Plan your day with timeline' },
       'mood-tracker': { label: 'Mood Tracker', desc: 'Track and visualize your mood' },
       'activity-feed': { label: 'Activity Feed', desc: 'Recent cross-module activity' },
@@ -954,15 +952,6 @@ const en = {
     highlights: 'Highlights',
     areasForImprovement: 'Areas for Improvement',
     nextWeekGoals: 'Next Week Goals',
-  },
-
-  // AI Insights
-  aiInsights: {
-    title: 'AI Insights',
-    productivityScore: 'Productivity Score',
-    wellnessScore: 'Wellness Score',
-    suggestion: 'Suggestion',
-    basedOnActivity: 'Based on your recent activity',
   },
 
   // Mood Tracker

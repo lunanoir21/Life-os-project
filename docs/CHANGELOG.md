@@ -68,7 +68,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - i18n: Turkish / English toggle
 
 #### Developer Experience
-- `CLAUDE.md` — codebase guidance for AI assistants
 - `TESTING.md` — test strategy documentation
 - Vitest + jsdom frontend test setup
 - Rust integration tests with `tempfile` in-memory SQLite isolation
@@ -82,7 +81,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - All Next.js API route handlers (replaced by Rust backend)
-- Z.ai / GLM integration artifacts
 - Multi-database support (PostgreSQL/MySQL) — SQLite-only architecture
 - Unused UI components tied to removed dependencies
 
